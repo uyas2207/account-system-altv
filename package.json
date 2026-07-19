@@ -1,0 +1,27 @@
+{
+  "name": "test",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build:client": "node build-scripts/build-client",
+    "build:server": "node build-scripts/build-server",
+    "build": "npx concurrently \"npm:build:*\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@altv/types-client": "latest",
+    "@altv/types-natives": "latest",
+    "@altv/types-server": "latest",
+    "@altv/types-shared": "latest",
+    "concurrently": "^7.0.0"
+  },
+  "dependencies": {
+    "altv-esbuild": "^0.9.3",
+    "esbuild": "^0.25.11",
+    "typescript": "^7.0.2"
+  },
+  "main": "index.js"
+}
