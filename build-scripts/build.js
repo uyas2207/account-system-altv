@@ -1,5 +1,6 @@
 import esbuild from 'esbuild';
 import { altvEsbuild } from 'altv-esbuild';
+import fs from 'fs';
 
 export const build = async ({ 
 	esbuild: esbuildOptions, 
@@ -25,3 +26,15 @@ export const build = async ({
 		...esbuildOptions,
 	});
 };
+
+function checkBeforeCopy(file, destination){
+	if (!fs.existsSync(`destination/${file}`)){
+		copy(file, destination);
+		return;
+	}
+
+}
+
+function copy(file, destination){
+	fs.copyFile(file, destination);
+}
