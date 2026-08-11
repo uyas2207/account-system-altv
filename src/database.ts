@@ -1,0 +1,54 @@
+import { Generated, Kysely, MysqlDialect } from 'kysely';
+import { createPool } from 'mysql2';
+
+export interface Database {
+    account: {
+        accountId: Generated<number>;
+        login: string;
+        password: string;
+        registrationDate: Generated<Date>;
+        money: number | null;
+    };
+/*
+CREATE TABLE account (
+    accountId INT AUTO_INCREMENT PRIMARY KEY,
+    login VARCHAR(50) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    registrationDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    money INT
+);
+*/
+    vehicles: {
+        vehId: Generated<number>;
+        ownerId: number;
+        model: string;
+        mainColour: string;
+        secondaryColour: string;
+        registrationNumber: string | null;
+    };
+}
+/* 
+CREATE TABLE vehicles (
+    vehId INT AUTO_INCREMENT PRIMARY KEY,
+    ownerId INT NOT NULL,
+    model VARCHAR(50) NOT NULL,
+    mainColour VARCHAR(50) NOT NULL,
+    secondaryColour VARCHAR(50) NOT NULL,
+    registrationNumber VARCHAR(50) UNIQUE,
+    CONSTRAINT vehicle_owner FOREIGN KEY (ownerId) REFERENCES account(accountId) ON DELETE CASCADE
+); 
+*/
+
+//    FOREIGN KEY (ownerId) REFERENCES account(id),
+
+export const db = new Kysely<Database>({
+    dialect: new MysqlDialect({
+        pool: createPool({
+            host: '127.0.0.1',
+            port: 3306,
+            user: 'root',
+            database: 'test',
+        })
+    })
+});
+
