@@ -7,7 +7,7 @@ export interface Database {
         login: string;
         password: string;
         registrationDate: Generated<Date>;
-        money: number | null;
+        money: number;
     };
 /*
 CREATE TABLE account (

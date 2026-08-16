@@ -1,9 +1,14 @@
 import * as alt from 'alt-server';
 const chat = require('alt:chat'); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
+
 import { DatabaseService } from './DatabaseService'
+import { CarShopServer } from './CarShopServer'
 
 export class CommandManager {
-    constructor(private readonly databaseService: DatabaseService){
+    constructor(
+        private readonly databaseService: DatabaseService,
+        private readonly carShopServer: CarShopServer,
+    ){
         this.#init();
     }
 
@@ -18,7 +23,7 @@ export class CommandManager {
                 const playerLogin = String (args[0] ?? null);
                 const playerPassword = String (args[1] ?? null);
 
-                this.databaseService.accountEnter(playerLogin, playerPassword);
+                //this.databaseService.accountEnter(playerLogin, playerPassword);
             }
             if( command === 'testRegister'){
                 const playerLogin = String (args[0] ?? null);
@@ -56,9 +61,19 @@ export class CommandManager {
             }
         });
     
-        chat.registerCmd('test', (player: alt.Player, args: Array<string>) => {
-            chat.send(player, 'test message with args:', ...args);
+        chat.registerCmd('buy', (player: alt.Player) => {
+            //chat.send(player, 'test message with args:');
+            this.carShopServer.onCarPurchaseAttempt(player);
+        });
 
+        chat.registerCmd('login', (player: alt.Player, login:string, password:string) => {
+            //chat.send(player, 'test message with args:');
+            try {
+                this.databaseService.accountEnter(player, login, password);
+            } catch (error) {
+                chat.send('Произошла  ошибка:', error);
+            }
+            chat.send(player, 'Вы успешно вошли в аккаунт');
         });
     }
 }

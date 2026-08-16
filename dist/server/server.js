@@ -7816,25 +7816,31 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
 
+const chat = __webpack_require__(/*! alt:chat */ "alt:chat"); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 class CarShopServer {
     config;
+    databaseService;
     activeVehiclesForSale;
-    constructor(config) {
+    constructor(config, databaseService) {
         this.config = config;
+        this.databaseService = databaseService;
         this.activeVehiclesForSale = [];
         this.#registerEventListeners();
     }
     #registerEventListeners() {
-        alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].on("playerEnteringVehicle", (player, vehicle, seat) => {
+        /*         alt.on('playerEnteringVehicle', (player, vehicle, seat) => {
+                    if (this.activeVehiclesForSale.includes(vehicle)){
+                        alt.emitClient(player, "carShop:allowCarPurchase", vehicle);
+                    }
+                }); */
+        alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].onClient('carShop:onVehiclePurchase', (player, vehicle) => {
             if (this.activeVehiclesForSale.includes(vehicle)) {
-                console.log('Машина на продаже');
-            }
-            else {
-                console.log('машина не продается');
+                //this.vehicleDataValidation();
             }
         });
     }
-    async createDemonstrationscene() {
+    //vehicleDataValidation(ownerId: number, model: string, mainColour:string, secondaryColour:string, registrationNumber: string){}
+    async createDemonstrationScene() {
         this.config.vehiclesForSale.forEach(e => {
             //console.log('e', e);
             const veh = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].Vehicle(e.model, e.x, e.y, e.z, e.rx, e.ry, e.rz);
@@ -7842,9 +7848,26 @@ class CarShopServer {
             const secondary = e.colorData.customSecondaryColor;
             veh.customPrimaryColor = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(primary.r, primary.g, primary.b, primary.a);
             veh.customSecondaryColor = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(secondary.r, secondary.g, secondary.b, secondary.a);
+            veh.setStreamSyncedMeta('CarForSalePrice', e.price);
             this.activeVehiclesForSale.push(veh);
         });
         //console.log('activeVehiclesForSale', this.activeVehiclesForSale);
+    }
+    onCarPurchaseAttempt(player) {
+        if (player.vehicle === null) {
+            chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
+            return;
+        }
+        if (!this.activeVehiclesForSale.includes(player.vehicle)) {
+            chat.send(player, 'Этот автомобиль не продается');
+            return;
+        }
+        if (!this.databaseService.accountLoginValidation(player)) {
+            chat.send(player, 'Нельзя покупать автомобиль не войдя в аккаунт');
+            return;
+        }
+    }
+    sendPlayerCarsForSale(player) {
     }
 }
 
@@ -7866,8 +7889,10 @@ __webpack_require__.r(__webpack_exports__);
 const chat = __webpack_require__(/*! alt:chat */ "alt:chat"); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 class CommandManager {
     databaseService;
-    constructor(databaseService) {
+    carShopServer;
+    constructor(databaseService, carShopServer) {
         this.databaseService = databaseService;
+        this.carShopServer = carShopServer;
         this.#init();
     }
     #init() {
@@ -7879,7 +7904,7 @@ class CommandManager {
             if (command === 'testEnter') {
                 const playerLogin = String(args[0] ?? null);
                 const playerPassword = String(args[1] ?? null);
-                this.databaseService.accountEnter(playerLogin, playerPassword);
+                //this.databaseService.accountEnter(playerLogin, playerPassword);
             }
             if (command === 'testRegister') {
                 const playerLogin = String(args[0] ?? null);
@@ -7915,8 +7940,19 @@ class CommandManager {
             if (command === 'marker') {
             }
         });
-        chat.registerCmd('test', (player, args) => {
-            chat.send(player, 'test message with args:', ...args);
+        chat.registerCmd('buy', (player) => {
+            //chat.send(player, 'test message with args:');
+            this.carShopServer.onCarPurchaseAttempt(player);
+        });
+        chat.registerCmd('login', (player, login, password) => {
+            //chat.send(player, 'test message with args:');
+            try {
+                this.databaseService.accountEnter(player, login, password);
+            }
+            catch (error) {
+                chat.send('Произошла  ошибка:', error);
+            }
+            chat.send(player, 'Вы успешно вошли в аккаунт');
         });
     }
 }
@@ -7934,12 +7970,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   DatabaseService: () => (/* binding */ DatabaseService)
 /* harmony export */ });
-//import { db } from '../src/database';
+/* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
+
 class DatabaseService {
     db;
+    allLoginnedPlayers = new Map();
     constructor(db) {
-        this.db = db;
         //this.#registerEventListeners(); //init
+        this.db = db;
+        //this.allActiveplayers = new Map(); 
     }
     /*     #registerEventListeners(){
     
@@ -7963,13 +8002,24 @@ class DatabaseService {
             throw new Error('Данный логин не достпуен');
         }
     }
+    accountLoginValidation(player) {
+        return this.allLoginnedPlayers.has(player);
+    }
     //вход в аккаунт
     // можно добавить кд на попытки и не больше 5 попыток за сессию
-    async accountEnter(playerLogin, playerPassword) {
+    async accountEnter(player, playerLogin, playerPassword) {
         const currentPlayerDBData = await this.checkAccountLogin(playerLogin);
-        if ((currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)) {
-            throw new Error('Введен некорректный логин или пароль');
+        if (this.allLoginnedPlayers.has(player)) {
+            throw new Error('Вы уже вошли в аккаунт');
         }
+        /*         if(this.allLoginnedPlayers.values().some(login => login === playerLogin)){
+                    throw new Error('Данный аккаунт уже используется');
+                }
+                if( (currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)){
+                    throw new Error('Введен некорректный логин или пароль');
+                }
+                //this.allLoginnedPlayers.values().some(login => login === playerLogin) ? (() => {throw new Error('Данный аккаунт уже используется')})() : null;
+                this.allLoginnedPlayers.set(player, {currentPlayerDBData.accountId, playerLogin}); */
         //alt.emitClient(player, 'account:reciveAccountDataAfterEnter', currentPlayerDBData.login, currentPlayerDBData.password));
     }
     async vehicleDataValidation(ownerId, model, mainColour, secondaryColour, registrationNumber) {
@@ -8017,6 +8067,14 @@ class DatabaseService {
     async printVehicles() {
         const vehicles = await this.db.selectFrom('vehicles').selectAll().execute();
         console.log(vehicles);
+    }
+    //дебаг команда, команда потом убрать
+    printAllLoginnedPlayers() {
+        alt_server__WEBPACK_IMPORTED_MODULE_0__.log('Весь allLoginnedPlayers');
+        this.allLoginnedPlayers.forEach((value, key) => {
+            alt_server__WEBPACK_IMPORTED_MODULE_0__.log(`Ключ: ${(key)}`);
+            alt_server__WEBPACK_IMPORTED_MODULE_0__.log('value:', (value));
+        });
     }
 }
 
@@ -47580,7 +47638,7 @@ module.exports = /*#__PURE__*/JSON.parse('{"name":"mysql2","version":"3.23.2","d
   \**************************************/
 (module) {
 
-module.exports = /*#__PURE__*/JSON.parse('{"vehiclesForSale":[{"model":"adder","x":-1653.32,"y":-3182.4,"z":13.98,"rx":0,"ry":0,"rz":-0.54,"colorData":{"customPrimaryColor":{"r":0,"g":0,"b":255,"a":255},"customSecondaryColor":{"r":0,"g":0,"b":255,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"textContent":{"price":5000}},{"model":"benson","x":-1641.8,"y":-3173.96,"z":13.9,"rx":0,"ry":0,"rz":0.99,"colorData":{"customPrimaryColor":{"r":0,"g":255,"b":0,"a":255},"customSecondaryColor":{"r":0,"g":255,"b":0,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"textContent":{"price":5000}}]}');
+module.exports = /*#__PURE__*/JSON.parse('{"vehiclesForSale":[{"model":"adder","x":-1653.32,"y":-3182.4,"z":13.98,"rx":0,"ry":0,"rz":-0.54,"colorData":{"customPrimaryColor":{"r":0,"g":0,"b":255,"a":255},"customSecondaryColor":{"r":0,"g":0,"b":255,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"price":5000},{"model":"benson","x":-1641.8,"y":-3173.96,"z":13.9,"rx":0,"ry":0,"rz":0.99,"colorData":{"customPrimaryColor":{"r":0,"g":255,"b":0,"a":255},"customSecondaryColor":{"r":0,"g":255,"b":0,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"price":10000}]}');
 
 /***/ }
 
@@ -47686,8 +47744,8 @@ class StartServer {
     carShopServer;
     constructor() {
         this.databaseService = new _DatabaseService__WEBPACK_IMPORTED_MODULE_2__.DatabaseService(_src_database__WEBPACK_IMPORTED_MODULE_1__.db);
-        this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_3__.CommandManager(this.databaseService);
-        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_4__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_5__);
+        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_4__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_5__, this.databaseService);
+        this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_3__.CommandManager(this.databaseService, this.carShopServer);
         this.#init();
     }
     #init() {
@@ -47733,10 +47791,11 @@ class StartServer {
                     }
                 }); */
         alt_server__WEBPACK_IMPORTED_MODULE_0__.on('resourceStart', async () => {
-            this.carShopServer.createDemonstrationscene();
+            this.carShopServer.createDemonstrationScene();
         });
         alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', async (player) => {
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
+            this.carShopServer.sendPlayerCarsForSale(player);
         });
     }
 }

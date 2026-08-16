@@ -18,8 +18,8 @@ class StartServer {
     constructor()
     {
         this.databaseService = new DatabaseService(db);
-        this.commandManager = new CommandManager(this.databaseService);
-        this.carShopServer = new CarShopServer(vehiclesForSale);
+        this.carShopServer = new CarShopServer(vehiclesForSale, this.databaseService);
+        this.commandManager = new CommandManager(this.databaseService, this.carShopServer);
         this.#init();
     }
 
@@ -72,6 +72,7 @@ class StartServer {
 
         alt.on('playerConnect', async (player) => {
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
+            this.carShopServer.sendPlayerCarsForSale(player);
         });
     }
 

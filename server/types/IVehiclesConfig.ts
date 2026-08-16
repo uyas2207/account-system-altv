@@ -27,15 +27,11 @@ export interface ITextCoords {
     distance: number;
 }
 
-export interface ITextContent {
-    price: number;
-}
-
 export interface IVehicleSaleData extends IVehicleSpawnCoords {
     model: string;
     colorData: IColorData;
     textCoords: ITextCoords;
-    textContent: ITextContent;
+    price: number;
 }
 
 export interface IVehiclesConfig {

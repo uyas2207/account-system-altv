@@ -8,7 +8,7 @@
                 "customSecondaryColor": { "r": 0, "g": 0, "b": 255, "a": 255 }
             },
             "textCoords": { "offsetX": 0.0, "offsetY": 0.0, "offsetZ": 1.2, "distance": 15 },
-            "textContent": { "price": 5000 }
+            "price": 5000
         },
         {
             "model": "benson",
@@ -18,7 +18,7 @@
                 "customSecondaryColor": { "r": 0, "g": 255, "b": 0, "a": 255 }
             },
             "textCoords": { "offsetX": 0.0, "offsetY": 0.0, "offsetZ": 1.2, "distance": 15 },
-            "textContent": { "price": 5000 }
+            "price": 10000
         }
     ]
 }
