@@ -1,29 +1,54 @@
 import * as alt from 'alt-server';
 import { Kysely } from 'kysely';
 
-import { db } from '../src/database';
-import { Database } from '../src/database';
-import { DatabaseService } from './DatabaseService'
+import { db } from './database/database';
+import { Database } from './database/database';
 import { CommandManager } from './CommandManager'
 import { CarShopServer } from './CarShopServer'
 
+import { AccountDBService } from './DataBase classes/AccountDBService';
+import { VehicleDBService } from './DataBase classes/VehicletDBService';
+
 import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
+import { json } from 'node:stream/consumers';
 
 
 class StartServer {
-    private readonly databaseService: DatabaseService;
+    //private readonly databaseService: DatabaseService;
+    private readonly accountDBService: AccountDBService;
+    private readonly vehicleDBService: VehicleDBService;
     private readonly commandManager: CommandManager;
     private readonly carShopServer: CarShopServer;
     
     constructor()
     {
-        this.databaseService = new DatabaseService(db);
-        this.carShopServer = new CarShopServer(vehiclesForSale, this.databaseService);
-        this.commandManager = new CommandManager(this.databaseService, this.carShopServer);
+        //this.databaseService = new DatabaseService(db);
+        this.accountDBService = new AccountDBService(db);
+        this.vehicleDBService = new VehicleDBService(db);
+        this.carShopServer = new CarShopServer(vehiclesForSale, /* this.databaseService */);
+        this.commandManager = new CommandManager(/* this.databaseService,*/ this.carShopServer);
         this.#init();
     }
 
     #init(){
+
+        alt.on('consoleCommand', (command, ...args) => {
+            if(command === 'testdb'){
+                this.accountDBService.insertNewRow({
+                    login: 'playerLogin1',
+                    password: 'playerPassword',
+                    money: 10000 
+                });
+            }
+            if(command === 'testveh'){
+                this.vehicleDBService.insertNewRow({
+                    ownerId: 1,
+                    model: 'adder',
+                    mainColour: { "r": 0, "g": 255, "b": 0, "a": 255  },
+                    secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
+                });
+            }
+        });
 /*             const result = VEHICLE_MODELS.includes('benson');
             console.log('result', result); */
 /*         alt.on('consoleCommand', (command, ...args) => {
@@ -72,10 +97,10 @@ class StartServer {
 
         alt.on('playerConnect', async (player) => {
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
-            this.carShopServer.sendPlayerCarsForSale(player);
+            alt.emitClient(player, 'carShop:createClientDemonstrationScene', vehiclesForSale);
+            //this.carShopServer.sendPlayerCarsForSale(player);
         });
     }
-
     
 }
 

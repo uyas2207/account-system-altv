@@ -1,6 +1,6 @@
-import { Generated, Kysely, MysqlDialect } from 'kysely';
+import { Generated, Kysely, MysqlDialect, JSONColumnType, ColumnType } from 'kysely';
 import { createPool } from 'mysql2';
-
+import {ICustomColor} from '../types/IVehiclesConfig'
 export interface Database {
     account: {
         accountId: Generated<number>;
@@ -22,8 +22,8 @@ CREATE TABLE account (
         vehId: Generated<number>;
         ownerId: number;
         model: string;
-        mainColour: string;
-        secondaryColour: string;
+        mainColour:  ColumnType<ICustomColor>;
+        secondaryColour: ColumnType<ICustomColor>;
         registrationNumber: string | null;
     };
 }
@@ -49,6 +49,12 @@ export const db = new Kysely<Database>({
             user: 'root',
             database: 'test',
         })
-    })
+    }),
+    log: (event) => {
+        if (event.level === 'query') {
+            console.log('SQL:', event.query.sql);
+            console.log('Parameters:', event.query.parameters);
+        }
+    }
 });
 

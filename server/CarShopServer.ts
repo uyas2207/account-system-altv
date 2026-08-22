@@ -2,12 +2,12 @@ import alt from 'alt-server';
 const chat = require('alt:chat'); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 
 import { IVehiclesConfig } from './types/IVehiclesConfig'
-import { DatabaseService } from './DatabaseService'
+/* import { DatabaseService } from './DatabaseService' */
 
 export class CarShopServer{
     private readonly activeVehiclesForSale: Array<alt.Vehicle>;
 
-    constructor(private readonly config: IVehiclesConfig, private readonly databaseService: DatabaseService){
+    constructor(private readonly config: IVehiclesConfig, /* private readonly databaseService: DatabaseService */){
         this.activeVehiclesForSale = [];
 
         this.#registerEventListeners();
@@ -51,13 +51,13 @@ export class CarShopServer{
             chat.send(player, 'Этот автомобиль не продается');
             return;
         }
-        if(!this.databaseService.accountLoginValidation(player)){
+/*         if(!this.databaseService.accountLoginValidation(player)){
             chat.send(player, 'Нельзя покупать автомобиль не войдя в аккаунт');
             return;
-        }
+        } */
         if(player.vehicle.hasStreamSyncedMeta('CarForSalePrice')){
             const price = player.vehicle.getSyncedMeta('CarForSalePrice') as number;
-            this.databaseService.carPurchaseAttempt(player, player.vehicle, price);
+            /* this.databaseService.carPurchaseAttempt(player, player.vehicle, price); */
         }
         else{
             chat.send(player, 'Произошла ошибка, нет цены у авто');
