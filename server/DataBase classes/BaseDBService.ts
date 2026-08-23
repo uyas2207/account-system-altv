@@ -1,7 +1,7 @@
-import { Kysely, Insertable, sql } from 'kysely';
+import { Kysely, Insertable, Updateable, Selectable } from 'kysely';
 import { Database } from '../database/database';
-import { ICustomColor } from '../types/IVehiclesConfig'
-export abstract class BaseDBService<T extends keyof Database, K extends keyof Database[T]>{
+    
+export abstract class BaseDBService<T extends keyof Database, K extends keyof Selectable<Database[T]>>{
     constructor(
         protected readonly db: Kysely<Database>,
         protected readonly tableName: T, 
@@ -9,51 +9,48 @@ export abstract class BaseDBService<T extends keyof Database, K extends keyof Da
     ){
 
     }
-
-    async getRowByPrimaryKey(value: any){
-        return await (this.db as any).selectFrom(this.tableName).where((this.primaryKeyName), '=', value).executeTakeFirst();
+    //value может быть только значением table по ключу primaryKey K
+    async getRowByPrimaryKey(value: Selectable<Database[T]>[K]){
+        return await (this.db as any).selectFrom(this.tableName).where((this.primaryKeyName), '=', value).selectAll().executeTakeFirst();
+    }
+    //value может быть только значением table по ключу primaryKey K
+    async deleteRowByPrimaryKey(value: Selectable<Database[T]>[K]){
+        await (this.db as any).deleteFrom(this.tableName).where(this.primaryKeyName, '=', value).executeTakeFirst();
+        console.log('Выполнено удаление:', value);
     }
 
-    async deleteRowByPrimaryKey(value: any){
-        return await (this.db as any).deleteFrom(this.tableName).where(this.primaryKeyName, '=', value).executeTakeFirst();
+    //принимаемым значением value может быть только тот тип значения который является типом columnName
+    async updateRowByPrimaryKey<C extends keyof Updateable<Database[T]>>(primaryKeyValue: keyof K, columnName: C, value: Updateable<Database[T]>[C]){
+        await (this.db as any).updateTable(this.tableName).set({[columnName]: value}).where(this.primaryKeyName, '=', primaryKeyValue).execute();
     }
+    
+    //values: Insertable<Database[T]> нужен для того что бы отправляемые в метод знаечния не могли не соответсововать типу данных из БД
+    async insertNewRow(values: Insertable<Database[T]>): Promise<void> {
+        //но почему то если я пытаюсь записать объект типа ICustomColor в стринг для корректной записаси появляется ошибка
+        //Type 'string' is not assignable to type 'Insertable<Database[T]>[Extract<keyof Insertable<Database[T]>, string>]'
+        //а если не переводить в стринг объект типа ICustomColor то он не запишется в БД из-за ошибки Error: CONSTRAINT
+        //так как в бд отправляется строка { r: 0, g: 255, b: 0, a: 255 } вместо { "r": 0, "g": 255, "b": 0, "a": 255 }
+        //поэтому перед отправкой надо сделать JSON.stringify, а для того что бы на такое не ругался ts нужно сделать values as any
+        //по идее values as any ничем не мешает так как проверка на правильный тип значений уже была выполнена в values: Insertable<Database[T]>
 
-/*     async insertNewRow( values: Insertable<Database[T]>): Promise<void> {
-        const preparedValues = { ...values }
-        console.log("typeof values", values);
-        console.log("typeof preparedValues", preparedValues);
+        const preparedValues = values as any;
+
+        for (const key in preparedValues) {
+            const currentValue = preparedValues[key];
+            if (typeof currentValue === 'object') {
+                preparedValues[key] = JSON.stringify(currentValue);
+            }
+        }
 
         await this.db
             .insertInto(this.tableName)
-            .values(values)
+            .values(preparedValues)
             .execute();
-    }  */
+    }
+
     
-
-    async insertNewRow(values: Insertable<Database[T]>): Promise<void> {
-/*     const preparedValues = values as any;
-
-
-    for (const key in preparedValues) {
-        const val = preparedValues[key];
-        if (val === 'object') {
-            preparedValues[key] = JSON.stringify(val);
-        }
-    } */
-
-
-    await sql`
-    INSERT INTO vehicles (ownerId, model, mainColour, secondaryColour) 
-    VALUES (${ownerId}, ${model}, ${mainColour}, ${secondaryColour})
-    `.execute(this.db);
-
-/*     await this.db
-        .insertInto(this.tableName)
-        .values(values)
-        .execute(); */
-}
-/*   async getAllTable(){
-        return await this.db.selectFrom(this.tableName).selectAll().execute();
+/*     async sqlRequestUpdateRowByPrimaryKey(primaryKeyValue: any, columnName: string, value: string){
+        await (this.db as any).updateTable(this.tableName).set({[columnName]: sql`${value}`}).where(this.primaryKeyName, '=', primaryKeyValue).execute();
     } */
     
     async printAllTable(){

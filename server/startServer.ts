@@ -10,7 +10,6 @@ import { AccountDBService } from './DataBase classes/AccountDBService';
 import { VehicleDBService } from './DataBase classes/VehicletDBService';
 
 import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
-import { json } from 'node:stream/consumers';
 
 
 class StartServer {
@@ -32,10 +31,18 @@ class StartServer {
 
     #init(){
 
-        alt.on('consoleCommand', (command, ...args) => {
+        alt.on('consoleCommand', async (command, ...args) => {
+            if(command === 'aaa'){
+                this.vehicleDBService.deleteRowByPrimaryKey(13);
+            }
+            if(command === 'bbb'){
+                console.log(await this.accountDBService.getRowByPrimaryKey(1));
+                console.log(await this.vehicleDBService.getRowByPrimaryKey(14));
+            }
+
             if(command === 'testdb'){
                 this.accountDBService.insertNewRow({
-                    login: 'playerLogin1',
+                    login: 'playerLogin2',
                     password: 'playerPassword',
                     money: 10000 
                 });
@@ -47,6 +54,9 @@ class StartServer {
                     mainColour: { "r": 0, "g": 255, "b": 0, "a": 255  },
                     secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
                 });
+            }
+            if(command === "addn"){
+                this.vehicleDBService.updateRowByPrimaryKey(13, 'registrationNumber', "A123AA_99");
             }
         });
 /*             const result = VEHICLE_MODELS.includes('benson');

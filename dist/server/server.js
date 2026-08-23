@@ -8007,50 +8007,41 @@ class BaseDBService {
         this.tableName = tableName;
         this.primaryKeyName = primaryKeyName;
     }
+    //value может быть только значением table по ключу primaryKey K
     async getRowByPrimaryKey(value) {
-        return await this.db.selectFrom(this.tableName).where((this.primaryKeyName), '=', value).executeTakeFirst();
+        return await this.db.selectFrom(this.tableName).where((this.primaryKeyName), '=', value).selectAll().executeTakeFirst();
     }
+    //value может быть только значением table по ключу primaryKey K
     async deleteRowByPrimaryKey(value) {
-        return await this.db.deleteFrom(this.tableName).where(this.primaryKeyName, '=', value).executeTakeFirst();
+        await this.db.deleteFrom(this.tableName).where(this.primaryKeyName, '=', value).executeTakeFirst();
+        console.log('Выполнено удаление:', value);
     }
-    /*     async insertNewRow( values: Insertable<Database[T]>): Promise<void> {
-            const preparedValues = { ...values }
-            console.log("typeof values", values);
-            console.log("typeof preparedValues", preparedValues);
-    
-            await this.db
-                .insertInto(this.tableName)
-                .values(values)
-                .execute();
-        }  */
+    //принимаемым значением value может быть только тот тип значения который является типом columnName
+    async updateRowByPrimaryKey(primaryKeyValue, columnName, value) {
+        await this.db.updateTable(this.tableName).set({ [columnName]: value }).where(this.primaryKeyName, '=', primaryKeyValue).execute();
+    }
+    //values: Insertable<Database[T]> нужен для того что бы отправляемые в метод знаечния не могли не соответсововать типу данных из БД
     async insertNewRow(values) {
-        // Делаем копию объекта, чтобы не мутировать исходные данные
-        const preparedValues = { ...values };
-        for (let key in preparedValues) {
-            const val = preparedValues[key];
-            if ("r" in val) {
-                console.log('val прошел проверку:', val);
+        //но почему то если я пытаюсь записать объект типа ICustomColor в стринг для корректной записаси появляется ошибка
+        //Type 'string' is not assignable to type 'Insertable<Database[T]>[Extract<keyof Insertable<Database[T]>, string>]'
+        //а если не переводить в стринг объект типа ICustomColor то он не запишется в БД из-за ошибки Error: CONSTRAINT
+        //так как в бд отправляется строка { r: 0, g: 255, b: 0, a: 255 } вместо { "r": 0, "g": 255, "b": 0, "a": 255 }
+        //поэтому перед отправкой надо сделать JSON.stringify, а для того что бы на такое не ругался ts нужно сделать values as any
+        //по идее values as any ничем не мешает так как проверка на правильный тип значений уже была выполнена в values: Insertable<Database[T]>
+        const preparedValues = values;
+        for (const key in preparedValues) {
+            const currentValue = preparedValues[key];
+            if (typeof currentValue === 'object') {
+                preparedValues[key] = JSON.stringify(currentValue);
             }
         }
-        /*
-            for (const key in preparedValues) {
-                const val = preparedValues[key];
-                
-                // Проверяем, что значение является объектом и это не дата
-                if (val && typeof val === 'object' && !(val instanceof Date)) {
-                    // Важно: сериализуем объект в валидную JSON-строку
-                    preparedValues[key] = JSON.stringify(val);
-                }
-            }
-        
-            await this.db
-                .insertInto(this.tableName as any)
-                .values(sql.ref
-                    )
-                .execute(); */
+        await this.db
+            .insertInto(this.tableName)
+            .values(preparedValues)
+            .execute();
     }
-    /*   async getAllTable(){
-            return await this.db.selectFrom(this.tableName).selectAll().execute();
+    /*     async sqlRequestUpdateRowByPrimaryKey(primaryKeyValue: any, columnName: string, value: string){
+            await (this.db as any).updateTable(this.tableName).set({[columnName]: sql`${value}`}).where(this.primaryKeyName, '=', primaryKeyValue).execute();
         } */
     async printAllTable() {
         console.log(await this.db.selectFrom(this.tableName).selectAll().execute());
@@ -47761,10 +47752,17 @@ class StartServer {
         this.#init();
     }
     #init() {
-        alt_server__WEBPACK_IMPORTED_MODULE_0__.on('consoleCommand', (command, ...args) => {
+        alt_server__WEBPACK_IMPORTED_MODULE_0__.on('consoleCommand', async (command, ...args) => {
+            if (command === 'aaa') {
+                this.vehicleDBService.deleteRowByPrimaryKey(13);
+            }
+            if (command === 'bbb') {
+                console.log(await this.accountDBService.getRowByPrimaryKey(1));
+                console.log(await this.vehicleDBService.getRowByPrimaryKey(14));
+            }
             if (command === 'testdb') {
                 this.accountDBService.insertNewRow({
-                    login: 'playerLogin1',
+                    login: 'playerLogin2',
                     password: 'playerPassword',
                     money: 10000
                 });
@@ -47776,6 +47774,9 @@ class StartServer {
                     mainColour: { "r": 0, "g": 255, "b": 0, "a": 255 },
                     secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
                 });
+            }
+            if (command === "addn") {
+                this.vehicleDBService.updateRowByPrimaryKey(13, 'registrationNumber', "A123AA_99");
             }
         });
         /*             const result = VEHICLE_MODELS.includes('benson');
