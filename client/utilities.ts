@@ -1,5 +1,6 @@
 import * as alt from 'alt-client';
-const native = require('natives'); // вместо import * as native from 'natives'; что бы для ts не нужно было добавлять декларацию
+import native from 'natives'
+//const native = require('natives'); // вместо import * as native from 'natives'; что бы для ts не нужно было добавлять декларацию
 
 export function wait(ms: number){
     return new Promise(resolve => alt.setTimeout(resolve, ms));

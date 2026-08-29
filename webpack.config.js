@@ -39,8 +39,7 @@ return [
         extensions: ['.tsx', '.ts', '.js'],
 
         alias: {
-          '@shared': path.resolve(__dirname, 'shared'),
-          '@BuffTypes': path.resolve(__dirname, 'client/buffs/buffTypes'),
+          '@shared': path.resolve(__dirname, 'shared')
         }
 
       },
@@ -79,8 +78,7 @@ return [
         extensions: ['.tsx', '.ts', '.js'],
 
         alias: {
-          '@shared': path.resolve(__dirname, 'shared'),
-          '@BuffTypes': path.resolve(__dirname, 'server/buffs/buffTypes'),
+          '@shared': path.resolve(__dirname, 'shared')
         }
 
       },

@@ -2,6 +2,59 @@ import * as __WEBPACK_EXTERNAL_MODULE_alt_client_680395b4__ from "alt-client";
 import * as __WEBPACK_EXTERNAL_MODULE_natives__ from "natives";
 /******/ var __webpack_modules__ = ({
 
+/***/ "./client/CarShopVisuals.ts"
+/*!**********************************!*\
+  !*** ./client/CarShopVisuals.ts ***!
+  \**********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   CarShopVisuals: () => (/* binding */ CarShopVisuals)
+/* harmony export */ });
+/* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
+
+class CarShopVisuals {
+    //возможно можно использовать что то более простое чем map, но по поиску элементов и их удалению не меняя id по которым будет обращения map подходит больше всего (если в массиве удалить элемент по index остальные индексы съедут а держать пустой элемент в нем что бы индексы не съезжали неправильно)
+    priceTextLabels = new Map();
+    constructor() {
+    }
+    createTextLabels(config) {
+        config.vehiclesForSale.forEach((e, index) => {
+            const text = e.textCoords;
+            const tColor = e.textColor;
+            const label = new alt_client__WEBPACK_IMPORTED_MODULE_0__.TextLabel(`${e.model}\n${e.price}`, "ChaletLondon", 100, 1, new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(e.x + text.offsetX, e.y + text.offsetY, e.z + text.offsetZ), new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(e.rx, e.ry, e.rz), new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(tColor.r, tColor.g, tColor.b, tColor.a), 2, new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(tColor.r, tColor.g, tColor.b, tColor.a), true, text.distance);
+            console.log('label.font', label.font);
+            this.priceTextLabels.set(index, label);
+        });
+    }
+    testDell(index) {
+        if (this.priceTextLabels.has(index) !== null && this.priceTextLabels.get(index) !== undefined) {
+            console.log('До удаления');
+            this.print();
+            const label = this.priceTextLabels.get(index);
+            // !. так как проверка на undefined уже была 
+            label.destroy();
+            this.priceTextLabels.delete(index);
+            console.log('После удаления');
+            this.print();
+        }
+        else {
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.logError(`Под значением ${index} нет label`);
+        }
+    }
+    print() {
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Весь priceTextLabels');
+        this.priceTextLabels.forEach((value, key) => {
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.log(`Ключ: ${(key)}`);
+            alt_client__WEBPACK_IMPORTED_MODULE_0__.log('value:', (value));
+        });
+    }
+}
+
+
+/***/ },
+
 /***/ "./client/utilities.ts"
 /*!*****************************!*\
   !*** ./client/utilities.ts ***!
@@ -14,20 +67,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   wait: () => (/* binding */ wait)
 /* harmony export */ });
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
+/* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
 
-const native = __webpack_require__(/*! natives */ "natives"); // вместо import * as native from 'natives'; что бы для ts не нужно было добавлять декларацию
+
+//const native = require('natives'); // вместо import * as native from 'natives'; что бы для ts не нужно было добавлять декларацию
 function wait(ms) {
     return new Promise(resolve => alt_client__WEBPACK_IMPORTED_MODULE_0__.setTimeout(resolve, ms));
 }
 //вызов гташных уведмолени с помощью нативок 
 function drawNotification(message, autoHide = false) {
-    native.beginTextCommandThefeedPost('STRING');
-    native.addTextComponentSubstringPlayerName(message);
-    const notificationId = native.endTextCommandThefeedPostTicker(false, false);
+    natives__WEBPACK_IMPORTED_MODULE_1__["default"].beginTextCommandThefeedPost('STRING');
+    natives__WEBPACK_IMPORTED_MODULE_1__["default"].addTextComponentSubstringPlayerName(message);
+    const notificationId = natives__WEBPACK_IMPORTED_MODULE_1__["default"].endTextCommandThefeedPostTicker(false, false);
     // Таймер для скрытия уведомления через 3 секунды если кроме текста сообщения передали true
     if (autoHide) {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.setTimeout(() => {
-            native.thefeedRemoveItem(notificationId);
+            natives__WEBPACK_IMPORTED_MODULE_1__["default"].thefeedRemoveItem(notificationId);
         }, 3000);
     }
 }
@@ -140,26 +195,35 @@ let __webpack_exports__ = {};
   \*******************************/
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
-/* harmony import */ var _utilities__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./utilities */ "./client/utilities.ts");
+/* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
+/* harmony import */ var _utilities__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./utilities */ "./client/utilities.ts");
+/* harmony import */ var _CarShopVisuals__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./CarShopVisuals */ "./client/CarShopVisuals.ts");
+
 
 
 let label;
+
 class CarShopClient {
+    carShopVisuals;
     constructor() {
         this.#init();
+        this.carShopVisuals = new _CarShopVisuals__WEBPACK_IMPORTED_MODULE_3__.CarShopVisuals();
     }
     #init() {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('consoleCommand', async (command, ...arg) => {
-            /*     if(command === 'vehinfo'){
-                    const entity = alt.Player.local.vehicle as Record<string, any>;
-                    for (let key in entity) {
-                        try {
-                            alt.log(`${key} = ${entity[key]}`);
-                        } catch (error) {
-                            
-                        }
+            if (command === 'del') {
+                this.carShopVisuals.testDell(Number(arg[0]));
+            }
+            if (command === 'vehinfo') {
+                const entity = alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.vehicle;
+                for (let key in entity) {
+                    try {
+                        alt_client__WEBPACK_IMPORTED_MODULE_0__.log(`${key} = ${entity[key]}`);
                     }
-                } */
+                    catch (error) {
+                    }
+                }
+            }
             //marker 500 1 2
             if (command === 'marker') {
                 const fontSize = arg[0] ? Number(arg[0]) : 10;
@@ -169,7 +233,7 @@ class CarShopClient {
                     label.destroy();
                 }
                 label = new alt_client__WEBPACK_IMPORTED_MODULE_0__.TextLabel('Text\nText2', `ChaletLondon`, fontSize, scale, new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(-1648.79, -3139.85, 13.98), new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(0, 0, 0), new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(255, 0, 0, 255), outlineWidth, new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(0, 0, 255, 255), true, 10);
-                //(text: string, fontName: string, fontSize: number, scale: number, pos: alt.IVector3, rot: alt.IVector3, color: alt.RGBA, outlineWidth: number, outlineColor: alt.RGBA, useStreaming?: boolean, streamingDistance?: number)
+                //(text: string, fontName: string, fontSize: number, scale: number, pos: alt.IVector3, rot: alt.IVector3, tColor: alt.RGBA, outlineWidth: number, outlinetColor: alt.RGBA, useStreaming?: boolean, streamingDistance?: number)
             }
             if (command === 'destroy') {
                 label.destroy();
@@ -180,15 +244,56 @@ class CarShopClient {
             }
         });
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('startEnteringVehicle', (vehicle, seat, player) => {
-            if (vehicle.hasStreamSyncedMeta('CarForSalePrice')) {
-                const price = vehicle.getStreamSyncedMeta('CarForSalePrice');
-                (0,_utilities__WEBPACK_IMPORTED_MODULE_1__.drawNotification)(`/buy что бы купить машину ${vehicle.model}, Цена: ${price}`); //вынести тест в конфиг
+            console.log("vehicle.id", vehicle.id);
+            const model = natives__WEBPACK_IMPORTED_MODULE_1__["default"].getDisplayNameFromVehicleModel(vehicle.model);
+            console.log('model', model);
+            if (vehicle.hasStreamSyncedMeta('CarForSaleId')) {
+                (0,_utilities__WEBPACK_IMPORTED_MODULE_2__.drawNotification)(`/buy что бы купить машину ${vehicle.model}`); //вынести текст в конфиг
             }
+        });
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.on('streamSyncedMetaChange', (entity, metaKey, value, oldValue) => {
+            if (metaKey === 'CarForSaleId' && value === undefined) {
+                this.carShopVisuals.testDell(oldValue);
+            }
+        });
+        alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('carShop:createClientDemonstrationScene', (vehiclesForSale) => {
+            this.carShopVisuals.createTextLabels(vehiclesForSale);
+            //this.#createDemonstrationScene(vehiclesForSale);
+        });
+    }
+    #createDemonstrationScene(config) {
+        /*         for (let index = 0; index < config.vehiclesForSale.length; index++) {
+                    const e = config.vehiclesForSale[index];
+                    const text = e.textCoords;
+                    const tColor = e.textColor;
+                    new alt.TextLabel(
+                        `${e.model}\n${e.price}`,
+                        `ChaletLondon`,
+                        100,
+                        1,
+                        new alt.Vector3(
+                            e.x + text.offsetX,
+                            e.y + text.offsetY,
+                            e.z + text.offsetZ
+                        ),
+                        new alt.Vector3( e.rx, e.ry, e.rz),
+                        new alt.RGBA(tColor.r, tColor.g, tColor.b, tColor.a),
+                        2,
+                        new alt.RGBA(tColor.r, tColor.g, tColor.b, tColor.a),
+                        true,
+                        text.distance
+                    );
+                } */
+        config.vehiclesForSale.forEach((e, index) => {
+            const text = e.textCoords;
+            const tColor = e.textColor;
+            new alt_client__WEBPACK_IMPORTED_MODULE_0__.TextLabel(`${e.model}\n${e.price}`, `ChaletLondon`, 100, 1, new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(e.x + text.offsetX, e.y + text.offsetY, e.z + text.offsetZ), new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(e.rx, e.ry, e.rz), new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(tColor.r, tColor.g, tColor.b, tColor.a), 2, new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(tColor.r, tColor.g, tColor.b, tColor.a), true, text.distance);
         });
     }
     #allowCarPurchase(price, vehicle) {
     }
 }
+new CarShopClient();
 
 })();
 

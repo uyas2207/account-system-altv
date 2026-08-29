@@ -7804,6 +7804,93 @@ exports.raw = raw;
 
 /***/ },
 
+/***/ "./server/AccountManager.ts"
+/*!**********************************!*\
+  !*** ./server/AccountManager.ts ***!
+  \**********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   AccountManager: () => (/* binding */ AccountManager)
+/* harmony export */ });
+/* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
+
+class AccountManager {
+    accountDBService;
+    //map которая хранит в себе игроков которые в данный момент находятся на сервере и которые вошли в аккаунт
+    allLoginnedPlayers = new Map();
+    constructor(accountDBService) {
+        this.accountDBService = accountDBService;
+        //this.test();
+    }
+    async onAccountEnterAttempt(player, playerLogin, playerPassword) {
+        if (this.allLoginnedPlayers.has(player)) {
+            throw new Error('Вы уже вошли в аккаунт');
+        }
+        if (this.allLoginnedPlayers.values().some(session => session.login === playerLogin)) {
+            throw new Error('Данный аккаунт уже используется');
+        }
+        const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
+        if ((currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)) {
+            throw new Error('Введен некорректный логин или пароль');
+        }
+        this.allLoginnedPlayers.set(player, {
+            accountId: currentPlayerDBData.accountId,
+            login: playerLogin
+        });
+    }
+    async onAccountRegisterAttempt(player, playerLogin, playerPassword, playerRepeatPassword) {
+        if (await this.accountDBService.checkAccountLogin(playerLogin) !== undefined) {
+            throw new Error('Данный логин не достпуен');
+        }
+        if (playerPassword !== playerRepeatPassword) {
+            throw new Error('Пароли на совпадают');
+        }
+        // try {
+        await this.accountDBService.insertNewRow({ login: playerLogin, password: playerPassword, money: 10000 /* не забыть вынести в конфиг */ });
+        //автоматичский вход в аккаунт если игрок только что зарегестрировался
+        this.onAccountEnterAttempt(player, playerLogin, playerPassword);
+        //       } catch (error) {
+        //         throw new Error('Произошла ошибка при добавлении аккаунта в базу данных');
+        //   }
+    }
+    async requestPlayerForCarPurchase(player) {
+        if (!this.allLoginnedPlayers.has(player)) {
+            throw new Error('Для покупки автомобиля необходимой войти в аккаунт');
+        }
+        const currentPlayer = this.allLoginnedPlayers.get(player);
+        //Почему то ts жалуется на то что currentPlayer.accountId может быть undefined, хотя была проверка на allLoginnedPlayers.has 
+        //и после этого взят currentPlayer, а currentPlayer не может существовать без accountId и без login 
+        //и что бы ts не выдавал ошибку на ситуацию которой не должно быть сделал currentPlayer!.accountId
+        const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayer.accountId);
+        return currentPlayerDBData;
+    }
+    async changePlayerMoney(accountId, money) {
+        try {
+            await this.accountDBService.updateRowByPrimaryKey(accountId, 'money', money);
+        }
+        catch (error) {
+        }
+    }
+    /*     async test(){
+            const playerLogin = "test";
+            const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
+            console.log('currentPlayerDBData', currentPlayerDBData);
+        } */
+    //дебаг команда, команда потом убрать
+    printAllLoginnedPlayers() {
+        alt_server__WEBPACK_IMPORTED_MODULE_0__.log('Весь allLoginnedPlayers');
+        this.allLoginnedPlayers.forEach((value, key) => {
+            alt_server__WEBPACK_IMPORTED_MODULE_0__.log(`Ключ: ${(key)}`);
+            alt_server__WEBPACK_IMPORTED_MODULE_0__.log('value:', (value));
+        });
+    }
+}
+
+
+/***/ },
+
 /***/ "./server/CarShopServer.ts"
 /*!*********************************!*\
   !*** ./server/CarShopServer.ts ***!
@@ -7817,57 +7904,77 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
 
 const chat = __webpack_require__(/*! alt:chat */ "alt:chat"); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
-/* import { DatabaseService } from './DatabaseService' */
 class CarShopServer {
     config;
+    vehicleDBService;
+    accoutManager;
     activeVehiclesForSale;
-    constructor(config) {
+    constructor(config, vehicleDBService, accoutManager) {
         this.config = config;
-        this.activeVehiclesForSale = [];
+        this.vehicleDBService = vehicleDBService;
+        this.accoutManager = accoutManager;
+        this.activeVehiclesForSale = new Set();
         this.#registerEventListeners();
     }
     #registerEventListeners() {
-        /*         alt.on('playerEnteringVehicle', (player, vehicle, seat) => {
-                    if (this.activeVehiclesForSale.includes(vehicle)){
-                        alt.emitClient(player, "carShop:allowCarPurchase", vehicle);
-                    }
-                }); */
         alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].onClient('carShop:onVehiclePurchase', (player, vehicle) => {
-            if (this.activeVehiclesForSale.includes(vehicle)) {
-                //this.vehicleDataValidation();
+            if (this.activeVehiclesForSale.has(vehicle)) {
             }
         });
     }
     //vehicleDataValidation(ownerId: number, model: string, mainColour:string, secondaryColour:string, registrationNumber: string){}
     async createDemonstrationScene() {
-        this.config.vehiclesForSale.forEach(e => {
-            //console.log('e', e);
+        this.config.vehiclesForSale.forEach((e, index) => {
             const veh = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].Vehicle(e.model, e.x, e.y, e.z, e.rx, e.ry, e.rz);
             const primary = e.colorData.customPrimaryColor;
             const secondary = e.colorData.customSecondaryColor;
             veh.customPrimaryColor = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(primary.r, primary.g, primary.b, primary.a);
             veh.customSecondaryColor = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(secondary.r, secondary.g, secondary.b, secondary.a);
-            veh.setStreamSyncedMeta('CarForSalePrice', e.price);
-            this.activeVehiclesForSale.push(veh);
+            //StreamSyncedMeta('CarForSaleId', index) используется на клиенте при создании визуальных отображений машины и цены 
+            //так как клиент проходится по такому же списку vehiclesForSale из такого же конфига при удалении StreamSyncedMeta с определенным индексом 
+            //клиент сможет удалить надпись о продаже у того авто которое было продано (удалит label по index так как index 
+            //это порядковый номер авто из конфига а конфиг одинаковый для клиента и сервера и перебирается в одном и том же порядке на сервере и клиенте)
+            veh.setStreamSyncedMeta('CarForSaleId', index);
+            this.activeVehiclesForSale.add(veh);
         });
-        //console.log('activeVehiclesForSale', this.activeVehiclesForSale);
     }
-    onCarPurchaseAttempt(player) {
-        if (player.vehicle === null) {
+    async onCarPurchaseAttempt(player) {
+        const vehicle = player.vehicle;
+        if (vehicle === null) {
             chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
             return;
         }
-        if (!this.activeVehiclesForSale.includes(player.vehicle)) {
+        if (!this.activeVehiclesForSale.has(vehicle)) {
             chat.send(player, 'Этот автомобиль не продается');
             return;
         }
-        /*         if(!this.databaseService.accountLoginValidation(player)){
-                    chat.send(player, 'Нельзя покупать автомобиль не войдя в аккаунт');
-                    return;
-                } */
-        if (player.vehicle.hasStreamSyncedMeta('CarForSalePrice')) {
-            const price = player.vehicle.getSyncedMeta('CarForSalePrice');
-            /* this.databaseService.carPurchaseAttempt(player, player.vehicle, price); */
+        if (vehicle.hasStreamSyncedMeta('CarForSaleId')) {
+            try {
+                const currentPlayerDBData = await this.accoutManager.requestPlayerForCarPurchase(player);
+                const price = vehicle.getStreamSyncedMeta('CarForSaleId');
+                if ((currentPlayerDBData.money ?? 0) >= price) {
+                    //Вопрос кто должен заниматься подсчетами и нужно ли по ООП проводить запрос
+                    //на изщменение суммы через AccoutManager или можно сразу оптравлять в AccountDBService
+                    const playerMoneyAfterPurchase = currentPlayerDBData.money - price;
+                    await this.accoutManager.changePlayerMoney(currentPlayerDBData.accountId, playerMoneyAfterPurchase);
+                    this.vehicleDBService.insertNewRow({
+                        ownerId: currentPlayerDBData.accountId,
+                        model: vehicle.model,
+                        mainColour: vehicle.customPrimaryColor,
+                        secondaryColour: vehicle.customSecondaryColor
+                    });
+                    chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
+                    vehicle.deleteStreamSyncedMeta('CarForSaleId');
+                    this.activeVehiclesForSale.delete(vehicle);
+                }
+                else {
+                    throw new Error('На аккаунте недостаточно денег');
+                }
+            }
+            catch (error) {
+                chat.send(player, `${error}`);
+            }
+            //this.vehicleDBService();
         }
         else {
             chat.send(player, 'Произошла ошибка, нет цены у авто');
@@ -7893,10 +8000,10 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 const chat = __webpack_require__(/*! alt:chat */ "alt:chat"); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 class CommandManager {
+    accoutManager;
     carShopServer;
-    constructor(
-    /*         private readonly databaseService: DatabaseService, */
-    carShopServer) {
+    constructor(accoutManager, carShopServer) {
+        this.accoutManager = accoutManager;
         this.carShopServer = carShopServer;
         this.#init();
     }
@@ -7952,6 +8059,37 @@ class CommandManager {
             //chat.send(player, 'test message with args:');
             this.carShopServer.onCarPurchaseAttempt(player);
         });
+        // register login password repeat-password
+        chat.registerCmd('register', (player, args) => {
+            const login = args[0];
+            const password = args[1];
+            const repeatPassword = args[2];
+            console.log('login, password, repeatPassword', login, password, repeatPassword);
+            if (login === undefined || password === undefined || repeatPassword === undefined) {
+                console.log("/register <login> <password> <repeat-password>");
+                console.log("Не введены значения login, password или repeat-password");
+                return;
+            }
+            this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+        });
+        // login login password
+        chat.registerCmd('login', (player, args) => {
+            console.log('args[0], args[1]', args[0], args[1]);
+            //chat.send(player, 'test message with args:');
+            if (args[0] === undefined || args[1] === undefined) {
+                console.log("/login <login> <password>");
+                console.log("Не введены значения password или login");
+                return;
+            }
+            try {
+                this.accoutManager.onAccountEnterAttempt(player, args[0], args[1]);
+                chat.send(player, 'Вы успешно вошли в аккаунт');
+            }
+            catch (error) {
+                chat.send(player, 'Произошла  ошибка:', error);
+            }
+        });
+        // register login password repeat-password
         /*         chat.registerCmd('login', (player: alt.Player, login:string, password:string) => {
                     //chat.send(player, 'test message with args:');
                     try {
@@ -7961,6 +8099,34 @@ class CommandManager {
                     }
                     chat.send(player, 'Вы успешно вошли в аккаунт');
                 }); */
+    }
+}
+
+
+/***/ },
+
+/***/ "./server/ConfigManager.ts"
+/*!*********************************!*\
+  !*** ./server/ConfigManager.ts ***!
+  \*********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ConfigManager: () => (/* binding */ ConfigManager)
+/* harmony export */ });
+//import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
+class ConfigManager {
+    config;
+    constructor(config) {
+        this.config = config;
+        this.#init();
+    }
+    #init() {
+        console.log("vehiclesForSale", this.config);
+        this.#modifyConfigData();
+    }
+    #modifyConfigData() {
     }
 }
 
@@ -7982,6 +8148,9 @@ __webpack_require__.r(__webpack_exports__);
 class AccountDBService extends _BaseDBService__WEBPACK_IMPORTED_MODULE_0__.BaseDBService {
     constructor(db) {
         super(db, 'account', 'accountId');
+    }
+    async checkAccountLogin(playerLogin) {
+        return await this.db.selectFrom('account').where('login', '=', playerLogin).selectAll().executeTakeFirst();
     }
 }
 
@@ -8016,15 +8185,19 @@ class BaseDBService {
         await this.db.deleteFrom(this.tableName).where(this.primaryKeyName, '=', value).executeTakeFirst();
         console.log('Выполнено удаление:', value);
     }
+    //поиск конкретного value по переданному columnName
+    async getRowByColumnName(columnName, value) {
+        return await this.db.selectFrom(this.tableName).where((columnName), '=', value).selectAll().executeTakeFirst();
+    }
     //принимаемым значением value может быть только тот тип значения который является типом columnName
     async updateRowByPrimaryKey(primaryKeyValue, columnName, value) {
         await this.db.updateTable(this.tableName).set({ [columnName]: value }).where(this.primaryKeyName, '=', primaryKeyValue).execute();
     }
     //values: Insertable<Database[T]> нужен для того что бы отправляемые в метод знаечния не могли не соответсововать типу данных из БД
     async insertNewRow(values) {
-        //но почему то если я пытаюсь записать объект типа ICustomColor в стринг для корректной записаси появляется ошибка
+        //но почему то если я пытаюсь записать объект типа IColorRGBA в стринг для корректной записаси появляется ошибка
         //Type 'string' is not assignable to type 'Insertable<Database[T]>[Extract<keyof Insertable<Database[T]>, string>]'
-        //а если не переводить в стринг объект типа ICustomColor то он не запишется в БД из-за ошибки Error: CONSTRAINT
+        //а если не переводить в стринг объект типа IColorRGBA то он не запишется в БД из-за ошибки Error: CONSTRAINT
         //так как в бд отправляется строка { r: 0, g: 255, b: 0, a: 255 } вместо { "r": 0, "g": 255, "b": 0, "a": 255 }
         //поэтому перед отправкой надо сделать JSON.stringify, а для того что бы на такое не ругался ts нужно сделать values as any
         //по идее values as any ничем не мешает так как проверка на правильный тип значений уже была выполнена в values: Insertable<Database[T]>
@@ -47635,7 +47808,7 @@ module.exports = /*#__PURE__*/JSON.parse('{"name":"mysql2","version":"3.23.2","d
   \**************************************/
 (module) {
 
-module.exports = /*#__PURE__*/JSON.parse('{"vehiclesForSale":[{"model":"adder","x":-1653.32,"y":-3182.4,"z":13.98,"rx":0,"ry":0,"rz":-0.54,"colorData":{"customPrimaryColor":{"r":0,"g":0,"b":255,"a":255},"customSecondaryColor":{"r":0,"g":0,"b":255,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"price":5000},{"model":"benson","x":-1641.8,"y":-3173.96,"z":13.9,"rx":0,"ry":0,"rz":0.99,"colorData":{"customPrimaryColor":{"r":0,"g":255,"b":0,"a":255},"customSecondaryColor":{"r":0,"g":255,"b":0,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"price":10000}]}');
+module.exports = /*#__PURE__*/JSON.parse('{"vehiclesForSale":[{"model":"adder","x":-1653.32,"y":-3182.4,"z":13.98,"rx":0,"ry":0,"rz":-0.54,"colorData":{"customPrimaryColor":{"r":0,"g":0,"b":255,"a":255},"customSecondaryColor":{"r":0,"g":0,"b":255,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"textColor":{"r":0,"g":0,"b":255,"a":255},"price":5000},{"model":"benson","x":-1641.8,"y":-3173.96,"z":13.9,"rx":0,"ry":0,"rz":0.99,"colorData":{"customPrimaryColor":{"r":0,"g":255,"b":0,"a":255},"customSecondaryColor":{"r":0,"g":255,"b":0,"a":255}},"textCoords":{"offsetX":-3.5,"offsetY":2.55,"offsetZ":1.2,"distance":15},"textColor":{"r":0,"g":255,"b":0,"a":255},"price":10000}]}');
 
 /***/ }
 
@@ -47727,9 +47900,13 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _database_database__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./database/database */ "./server/database/database.ts");
 /* harmony import */ var _CommandManager__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./CommandManager */ "./server/CommandManager.ts");
 /* harmony import */ var _CarShopServer__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./CarShopServer */ "./server/CarShopServer.ts");
-/* harmony import */ var _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./DataBase classes/AccountDBService */ "./server/DataBase classes/AccountDBService.ts");
-/* harmony import */ var _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./DataBase classes/VehicletDBService */ "./server/DataBase classes/VehicletDBService.ts");
-/* harmony import */ var _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./config/VehConfig.json */ "./server/config/VehConfig.json");
+/* harmony import */ var _AccountManager__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./AccountManager */ "./server/AccountManager.ts");
+/* harmony import */ var _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./DataBase classes/AccountDBService */ "./server/DataBase classes/AccountDBService.ts");
+/* harmony import */ var _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./DataBase classes/VehicletDBService */ "./server/DataBase classes/VehicletDBService.ts");
+/* harmony import */ var _ConfigManager__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./ConfigManager */ "./server/ConfigManager.ts");
+/* harmony import */ var _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./config/VehConfig.json */ "./server/config/VehConfig.json");
+
+
 
 
 
@@ -47741,18 +47918,22 @@ class StartServer {
     //private readonly databaseService: DatabaseService;
     accountDBService;
     vehicleDBService;
+    accoutManager;
     commandManager;
     carShopServer;
+    configManager;
     constructor() {
         //this.databaseService = new DatabaseService(db);
-        this.accountDBService = new _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_4__.AccountDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
-        this.vehicleDBService = new _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_5__.VehicleDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
-        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_6__);
-        this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_2__.CommandManager(/* this.databaseService,*/ this.carShopServer);
+        this.accountDBService = new _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__.AccountDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
+        this.vehicleDBService = new _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__.VehicleDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
+        this.accoutManager = new _AccountManager__WEBPACK_IMPORTED_MODULE_4__.AccountManager(this.accountDBService);
+        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__, this.vehicleDBService, this.accoutManager);
+        this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_2__.CommandManager(this.accoutManager, this.carShopServer);
+        this.configManager = new _ConfigManager__WEBPACK_IMPORTED_MODULE_7__.ConfigManager(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__);
         this.#init();
     }
     #init() {
-        alt_server__WEBPACK_IMPORTED_MODULE_0__.on('consoleCommand', async (command, ...args) => {
+        alt_server__WEBPACK_IMPORTED_MODULE_0__.on('consoleCommand', async (command, args) => {
             if (command === 'aaa') {
                 this.vehicleDBService.deleteRowByPrimaryKey(13);
             }
@@ -47770,13 +47951,20 @@ class StartServer {
             if (command === 'testveh') {
                 this.vehicleDBService.insertNewRow({
                     ownerId: 1,
-                    model: 'adder',
+                    model: 123,
                     mainColour: { "r": 0, "g": 255, "b": 0, "a": 255 },
                     secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
                 });
             }
             if (command === "addn") {
                 this.vehicleDBService.updateRowByPrimaryKey(13, 'registrationNumber', "A123AA_99");
+            }
+            if (command === 'delltest') {
+                if (args[0] !== undefined) {
+                    const id = Number(args[0]);
+                    const entity = alt_server__WEBPACK_IMPORTED_MODULE_0__.Vehicle.getByID(id);
+                    entity?.deleteStreamSyncedMeta('CarForSaleId');
+                }
             }
         });
         /*             const result = VEHICLE_MODELS.includes('benson');
@@ -47824,8 +48012,10 @@ class StartServer {
             this.carShopServer.createDemonstrationScene();
         });
         alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', async (player) => {
+            //new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
+            //player.spawn(-1269.91, -1438.64, 4.46);
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
-            alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'carShop:createClientDemonstrationScene', _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_6__);
+            alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'carShop:createClientDemonstrationScene', _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__);
             //this.carShopServer.sendPlayerCarsForSale(player);
         });
     }

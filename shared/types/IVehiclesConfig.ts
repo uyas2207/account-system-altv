@@ -8,7 +8,7 @@ export interface IVehicleSpawnCoords {
     rz: number;
 }
 
-export interface ICustomColor {
+export interface IColorRGBA {
     r: number;
     g: number;
     b: number;
@@ -16,11 +16,11 @@ export interface ICustomColor {
 }
 
 export interface IColorData {
-    customPrimaryColor: ICustomColor;
-    customSecondaryColor: ICustomColor;
+    customPrimaryColor: IColorRGBA;
+    customSecondaryColor: IColorRGBA;
 }
 
-export interface ITextCoords {
+export interface ItextCoords {
     offsetX: number;
     offsetY: number;
     offsetZ: number;
@@ -30,7 +30,8 @@ export interface ITextCoords {
 export interface IVehicleSaleData extends IVehicleSpawnCoords {
     model: string;
     colorData: IColorData;
-    textCoords: ITextCoords;
+    textCoords: ItextCoords;
+    textColor: IColorRGBA;
     price: number;
 }
 

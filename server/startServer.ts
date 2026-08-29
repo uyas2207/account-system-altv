@@ -5,10 +5,12 @@ import { db } from './database/database';
 import { Database } from './database/database';
 import { CommandManager } from './CommandManager'
 import { CarShopServer } from './CarShopServer'
+import { AccountManager } from './AccountManager'
 
 import { AccountDBService } from './DataBase classes/AccountDBService';
 import { VehicleDBService } from './DataBase classes/VehicletDBService';
 
+import { ConfigManager } from './ConfigManager'
 import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
 
 
@@ -16,22 +18,26 @@ class StartServer {
     //private readonly databaseService: DatabaseService;
     private readonly accountDBService: AccountDBService;
     private readonly vehicleDBService: VehicleDBService;
+    private readonly accoutManager: AccountManager;
     private readonly commandManager: CommandManager;
     private readonly carShopServer: CarShopServer;
     
+    //private readonly configManager: ConfigManager;
     constructor()
     {
         //this.databaseService = new DatabaseService(db);
         this.accountDBService = new AccountDBService(db);
         this.vehicleDBService = new VehicleDBService(db);
-        this.carShopServer = new CarShopServer(vehiclesForSale, /* this.databaseService */);
-        this.commandManager = new CommandManager(/* this.databaseService,*/ this.carShopServer);
+        this.accoutManager = new AccountManager(this.accountDBService);
+        this.carShopServer = new CarShopServer(vehiclesForSale, this.vehicleDBService, this.accoutManager);
+        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer);
+        //this.configManager = new ConfigManager(vehiclesForSale);
         this.#init();
     }
 
     #init(){
 
-        alt.on('consoleCommand', async (command, ...args) => {
+        alt.on('consoleCommand', async (command, args) => {
             if(command === 'aaa'){
                 this.vehicleDBService.deleteRowByPrimaryKey(13);
             }
@@ -50,7 +56,7 @@ class StartServer {
             if(command === 'testveh'){
                 this.vehicleDBService.insertNewRow({
                     ownerId: 1,
-                    model: 'adder',
+                    model: 123,
                     mainColour: { "r": 0, "g": 255, "b": 0, "a": 255  },
                     secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
                 });
@@ -58,6 +64,15 @@ class StartServer {
             if(command === "addn"){
                 this.vehicleDBService.updateRowByPrimaryKey(13, 'registrationNumber', "A123AA_99");
             }
+
+            if(command === 'delltest'){
+                if (args[0] !== undefined){
+                    const id = Number (args[0]);
+                    const entity = alt.Vehicle.getByID(id);
+                    entity?.deleteStreamSyncedMeta('CarForSaleId');
+                }
+            }
+
         });
 /*             const result = VEHICLE_MODELS.includes('benson');
             console.log('result', result); */
@@ -106,6 +121,8 @@ class StartServer {
         });
 
         alt.on('playerConnect', async (player) => {
+            //new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
+            //player.spawn(-1269.91, -1438.64, 4.46);
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
             alt.emitClient(player, 'carShop:createClientDemonstrationScene', vehiclesForSale);
             //this.carShopServer.sendPlayerCarsForSale(player);

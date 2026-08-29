@@ -1,6 +1,6 @@
 import { Generated, Kysely, MysqlDialect, JSONColumnType, ColumnType } from 'kysely';
 import { createPool } from 'mysql2';
-import {ICustomColor} from '../types/IVehiclesConfig'
+import {IColorRGBA} from '@shared/types/IVehiclesConfig'
 export interface Database {
     account: {
         accountId: Generated<number>;
@@ -21,9 +21,9 @@ CREATE TABLE account (
     vehicles: {
         vehId: Generated<number>;
         ownerId: number;
-        model: string;
-        mainColour:  ColumnType<ICustomColor>;
-        secondaryColour: ColumnType<ICustomColor>;
+        model: number;  //хэш авто это number
+        mainColour:  ColumnType<IColorRGBA>;
+        secondaryColour: ColumnType<IColorRGBA>;
         registrationNumber: string | null;
     };
 }

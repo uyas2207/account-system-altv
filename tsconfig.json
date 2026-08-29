@@ -4,13 +4,15 @@
     // File Layout
     // "rootDir": "./src",
     // "outDir": "./dist",
-
+    "paths": {
+      "@shared/*": ["./shared/*"]
+    },
     // Environment Settings
     // See also https://aka.ms/tsconfig/module
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "esnext",
-    "types": ["node", "@altv/types-client", "@altv/types-server"],
+    "types": ["node", "@altv/types-client", "@altv/types-server", "@altv/types-natives"],
     // For nodejs:
     "lib": ["esnext"],
     // and npm install -D @types/node

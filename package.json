@@ -5,6 +5,7 @@
   "main": "tsconfig.json",
   "devDependencies": {
     "@altv/types-client": "^16.6.0",
+    "@altv/types-natives": "^16.2.1",
     "@altv/types-server": "^16.6.0",
     "ts-loader": "^9.6.2",
     "typescript": "5.9",
