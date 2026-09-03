@@ -3,10 +3,11 @@ const chat = require('alt:chat'); // вместо import * as chat from 'alt:cha
 
 /* import { DatabaseService } from './DatabaseService' */
 import { CarShopServer } from './CarShopServer'
+import { AccountManager } from './AccountManager'
 
 export class CommandManager {
     constructor(
-/*         private readonly databaseService: DatabaseService, */
+        private readonly accoutManager: AccountManager, 
         private readonly carShopServer: CarShopServer,
     ){
         this.#init();
@@ -65,6 +66,42 @@ export class CommandManager {
             //chat.send(player, 'test message with args:');
             this.carShopServer.onCarPurchaseAttempt(player);
         });
+        // register login password repeat-password
+        chat.registerCmd('register', (player: alt.Player, args: Array<string>) => {
+            const login = args[0]
+            const password = args[1];
+            const repeatPassword = args[2];
+
+            console.log('login, password, repeatPassword', login, password, repeatPassword)
+
+            if(login === undefined || password === undefined || repeatPassword === undefined){
+                console.log("/register <login> <password> <repeat-password>");
+                console.log("Не введены значения login, password или repeat-password");
+                return;
+            }
+            this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+        });
+        // login login password
+        chat.registerCmd('login', (player: alt.Player, args: Array<string>) => {
+            console.log('args[0], args[1]', args[0], args[1]);
+            //chat.send(player, 'test message with args:');
+            if(args[0] === undefined || args[1] === undefined){
+                console.log("/login <login> <password>");
+                console.log("Не введены значения password или login");
+                return;
+            }
+            try {
+                this.accoutManager.onAccountEnterAttempt(player, args[0], args[1]);
+                chat.send(player,'Вы успешно вошли в аккаунт');
+            } catch (error) {
+                chat.send(player,'Произошла  ошибка:', error);
+            }
+        });
+        // myvehs
+        chat.registerCmd('myvehs', (player: alt.Player) => {
+
+        });
+        // register login password repeat-password
 
 /*         chat.registerCmd('login', (player: alt.Player, login:string, password:string) => {
             //chat.send(player, 'test message with args:');

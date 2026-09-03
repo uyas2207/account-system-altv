@@ -3046,497 +3046,6 @@ exports.proxies = [
 
 /***/ },
 
-/***/ "./node_modules/denque/index.js"
-/*!**************************************!*\
-  !*** ./node_modules/denque/index.js ***!
-  \**************************************/
-(module) {
-
-
-
-/**
- * Custom implementation of a double ended queue.
- */
-function Denque(array, options) {
-  var options = options || {};
-  this._capacity = options.capacity;
-
-  this._head = 0;
-  this._tail = 0;
-
-  if (Array.isArray(array)) {
-    this._fromArray(array);
-  } else {
-    this._capacityMask = 0x3;
-    this._list = new Array(4);
-  }
-}
-
-/**
- * --------------
- *  PUBLIC API
- * -------------
- */
-
-/**
- * Returns the item at the specified index from the list.
- * 0 is the first element, 1 is the second, and so on...
- * Elements at negative values are that many from the end: -1 is one before the end
- * (the last element), -2 is two before the end (one before last), etc.
- * @param index
- * @returns {*}
- */
-Denque.prototype.peekAt = function peekAt(index) {
-  var i = index;
-  // expect a number or return undefined
-  if ((i !== (i | 0))) {
-    return void 0;
-  }
-  var len = this.size();
-  if (i >= len || i < -len) return undefined;
-  if (i < 0) i += len;
-  i = (this._head + i) & this._capacityMask;
-  return this._list[i];
-};
-
-/**
- * Alias for peekAt()
- * @param i
- * @returns {*}
- */
-Denque.prototype.get = function get(i) {
-  return this.peekAt(i);
-};
-
-/**
- * Returns the first item in the list without removing it.
- * @returns {*}
- */
-Denque.prototype.peek = function peek() {
-  if (this._head === this._tail) return undefined;
-  return this._list[this._head];
-};
-
-/**
- * Alias for peek()
- * @returns {*}
- */
-Denque.prototype.peekFront = function peekFront() {
-  return this.peek();
-};
-
-/**
- * Returns the item that is at the back of the queue without removing it.
- * Uses peekAt(-1)
- */
-Denque.prototype.peekBack = function peekBack() {
-  return this.peekAt(-1);
-};
-
-/**
- * Returns the current length of the queue
- * @return {Number}
- */
-Object.defineProperty(Denque.prototype, 'length', {
-  get: function length() {
-    return this.size();
-  }
-});
-
-/**
- * Return the number of items on the list, or 0 if empty.
- * @returns {number}
- */
-Denque.prototype.size = function size() {
-  if (this._head === this._tail) return 0;
-  if (this._head < this._tail) return this._tail - this._head;
-  else return this._capacityMask + 1 - (this._head - this._tail);
-};
-
-/**
- * Add an item at the beginning of the list.
- * @param item
- */
-Denque.prototype.unshift = function unshift(item) {
-  if (arguments.length === 0) return this.size();
-  var len = this._list.length;
-  this._head = (this._head - 1 + len) & this._capacityMask;
-  this._list[this._head] = item;
-  if (this._tail === this._head) this._growArray();
-  if (this._capacity && this.size() > this._capacity) this.pop();
-  if (this._head < this._tail) return this._tail - this._head;
-  else return this._capacityMask + 1 - (this._head - this._tail);
-};
-
-/**
- * Remove and return the first item on the list,
- * Returns undefined if the list is empty.
- * @returns {*}
- */
-Denque.prototype.shift = function shift() {
-  var head = this._head;
-  if (head === this._tail) return undefined;
-  var item = this._list[head];
-  this._list[head] = undefined;
-  this._head = (head + 1) & this._capacityMask;
-  if (head < 2 && this._tail > 10000 && this._tail <= this._list.length >>> 2) this._shrinkArray();
-  return item;
-};
-
-/**
- * Add an item to the bottom of the list.
- * @param item
- */
-Denque.prototype.push = function push(item) {
-  if (arguments.length === 0) return this.size();
-  var tail = this._tail;
-  this._list[tail] = item;
-  this._tail = (tail + 1) & this._capacityMask;
-  if (this._tail === this._head) {
-    this._growArray();
-  }
-  if (this._capacity && this.size() > this._capacity) {
-    this.shift();
-  }
-  if (this._head < this._tail) return this._tail - this._head;
-  else return this._capacityMask + 1 - (this._head - this._tail);
-};
-
-/**
- * Remove and return the last item on the list.
- * Returns undefined if the list is empty.
- * @returns {*}
- */
-Denque.prototype.pop = function pop() {
-  var tail = this._tail;
-  if (tail === this._head) return undefined;
-  var len = this._list.length;
-  this._tail = (tail - 1 + len) & this._capacityMask;
-  var item = this._list[this._tail];
-  this._list[this._tail] = undefined;
-  if (this._head < 2 && tail > 10000 && tail <= len >>> 2) this._shrinkArray();
-  return item;
-};
-
-/**
- * Remove and return the item at the specified index from the list.
- * Returns undefined if the list is empty.
- * @param index
- * @returns {*}
- */
-Denque.prototype.removeOne = function removeOne(index) {
-  var i = index;
-  // expect a number or return undefined
-  if ((i !== (i | 0))) {
-    return void 0;
-  }
-  if (this._head === this._tail) return void 0;
-  var size = this.size();
-  var len = this._list.length;
-  if (i >= size || i < -size) return void 0;
-  if (i < 0) i += size;
-  i = (this._head + i) & this._capacityMask;
-  var item = this._list[i];
-  var k;
-  if (index < size / 2) {
-    for (k = index; k > 0; k--) {
-      this._list[i] = this._list[i = (i - 1 + len) & this._capacityMask];
-    }
-    this._list[i] = void 0;
-    this._head = (this._head + 1 + len) & this._capacityMask;
-  } else {
-    for (k = size - 1 - index; k > 0; k--) {
-      this._list[i] = this._list[i = (i + 1 + len) & this._capacityMask];
-    }
-    this._list[i] = void 0;
-    this._tail = (this._tail - 1 + len) & this._capacityMask;
-  }
-  return item;
-};
-
-/**
- * Remove number of items from the specified index from the list.
- * Returns array of removed items.
- * Returns undefined if the list is empty.
- * @param index
- * @param count
- * @returns {array}
- */
-Denque.prototype.remove = function remove(index, count) {
-  var i = index;
-  var removed;
-  var del_count = count;
-  // expect a number or return undefined
-  if ((i !== (i | 0))) {
-    return void 0;
-  }
-  if (this._head === this._tail) return void 0;
-  var size = this.size();
-  var len = this._list.length;
-  if (i >= size || i < -size || count < 1) return void 0;
-  if (i < 0) i += size;
-  if (count === 1 || !count) {
-    removed = new Array(1);
-    removed[0] = this.removeOne(i);
-    return removed;
-  }
-  if (i === 0 && i + count >= size) {
-    removed = this.toArray();
-    this.clear();
-    return removed;
-  }
-  if (i + count > size) count = size - i;
-  var k;
-  removed = new Array(count);
-  for (k = 0; k < count; k++) {
-    removed[k] = this._list[(this._head + i + k) & this._capacityMask];
-  }
-  i = (this._head + i) & this._capacityMask;
-  if (index + count === size) {
-    this._tail = (this._tail - count + len) & this._capacityMask;
-    for (k = count; k > 0; k--) {
-      this._list[i = (i + 1 + len) & this._capacityMask] = void 0;
-    }
-    return removed;
-  }
-  if (index === 0) {
-    this._head = (this._head + count + len) & this._capacityMask;
-    for (k = count - 1; k > 0; k--) {
-      this._list[i = (i + 1 + len) & this._capacityMask] = void 0;
-    }
-    return removed;
-  }
-  if (i < size / 2) {
-    this._head = (this._head + index + count + len) & this._capacityMask;
-    for (k = index; k > 0; k--) {
-      this.unshift(this._list[i = (i - 1 + len) & this._capacityMask]);
-    }
-    i = (this._head - 1 + len) & this._capacityMask;
-    while (del_count > 0) {
-      this._list[i = (i - 1 + len) & this._capacityMask] = void 0;
-      del_count--;
-    }
-    if (index < 0) this._tail = i;
-  } else {
-    this._tail = i;
-    i = (i + count + len) & this._capacityMask;
-    for (k = size - (count + index); k > 0; k--) {
-      this.push(this._list[i++]);
-    }
-    i = this._tail;
-    while (del_count > 0) {
-      this._list[i = (i + 1 + len) & this._capacityMask] = void 0;
-      del_count--;
-    }
-  }
-  if (this._head < 2 && this._tail > 10000 && this._tail <= len >>> 2) this._shrinkArray();
-  return removed;
-};
-
-/**
- * Native splice implementation.
- * Remove number of items from the specified index from the list and/or add new elements.
- * Returns array of removed items or empty array if count == 0.
- * Returns undefined if the list is empty.
- *
- * @param index
- * @param count
- * @param {...*} [elements]
- * @returns {array}
- */
-Denque.prototype.splice = function splice(index, count) {
-  var i = index;
-  // expect a number or return undefined
-  if ((i !== (i | 0))) {
-    return void 0;
-  }
-  var size = this.size();
-  if (i < 0) i += size;
-  if (i > size) return void 0;
-  if (arguments.length > 2) {
-    var k;
-    var temp;
-    var removed;
-    var arg_len = arguments.length;
-    var len = this._list.length;
-    var arguments_index = 2;
-    if (!size || i < size / 2) {
-      temp = new Array(i);
-      for (k = 0; k < i; k++) {
-        temp[k] = this._list[(this._head + k) & this._capacityMask];
-      }
-      if (count === 0) {
-        removed = [];
-        if (i > 0) {
-          this._head = (this._head + i + len) & this._capacityMask;
-        }
-      } else {
-        removed = this.remove(i, count);
-        this._head = (this._head + i + len) & this._capacityMask;
-      }
-      while (arg_len > arguments_index) {
-        this.unshift(arguments[--arg_len]);
-      }
-      for (k = i; k > 0; k--) {
-        this.unshift(temp[k - 1]);
-      }
-    } else {
-      temp = new Array(size - (i + count));
-      var leng = temp.length;
-      for (k = 0; k < leng; k++) {
-        temp[k] = this._list[(this._head + i + count + k) & this._capacityMask];
-      }
-      if (count === 0) {
-        removed = [];
-        if (i != size) {
-          this._tail = (this._head + i + len) & this._capacityMask;
-        }
-      } else {
-        removed = this.remove(i, count);
-        this._tail = (this._tail - leng + len) & this._capacityMask;
-      }
-      while (arguments_index < arg_len) {
-        this.push(arguments[arguments_index++]);
-      }
-      for (k = 0; k < leng; k++) {
-        this.push(temp[k]);
-      }
-    }
-    return removed;
-  } else {
-    return this.remove(i, count);
-  }
-};
-
-/**
- * Soft clear - does not reset capacity.
- */
-Denque.prototype.clear = function clear() {
-  this._list = new Array(this._list.length);
-  this._head = 0;
-  this._tail = 0;
-};
-
-/**
- * Returns true or false whether the list is empty.
- * @returns {boolean}
- */
-Denque.prototype.isEmpty = function isEmpty() {
-  return this._head === this._tail;
-};
-
-/**
- * Returns an array of all queue items.
- * @returns {Array}
- */
-Denque.prototype.toArray = function toArray() {
-  return this._copyArray(false);
-};
-
-/**
- * -------------
- *   INTERNALS
- * -------------
- */
-
-/**
- * Fills the queue with items from an array
- * For use in the constructor
- * @param array
- * @private
- */
-Denque.prototype._fromArray = function _fromArray(array) {
-  var length = array.length;
-  var capacity = this._nextPowerOf2(length);
-
-  this._list = new Array(capacity);
-  this._capacityMask = capacity - 1;
-  this._tail = length;
-
-  for (var i = 0; i < length; i++) this._list[i] = array[i];
-};
-
-/**
- *
- * @param fullCopy
- * @param size Initialize the array with a specific size. Will default to the current list size
- * @returns {Array}
- * @private
- */
-Denque.prototype._copyArray = function _copyArray(fullCopy, size) {
-  var src = this._list;
-  var capacity = src.length;
-  var length = this.length;
-  size = size | length;
-
-  // No prealloc requested and the buffer is contiguous
-  if (size == length && this._head < this._tail) {
-    // Simply do a fast slice copy
-    return this._list.slice(this._head, this._tail);
-  }
-
-  var dest = new Array(size);
-
-  var k = 0;
-  var i;
-  if (fullCopy || this._head > this._tail) {
-    for (i = this._head; i < capacity; i++) dest[k++] = src[i];
-    for (i = 0; i < this._tail; i++) dest[k++] = src[i];
-  } else {
-    for (i = this._head; i < this._tail; i++) dest[k++] = src[i];
-  }
-
-  return dest;
-}
-
-/**
- * Grows the internal list array.
- * @private
- */
-Denque.prototype._growArray = function _growArray() {
-  if (this._head != 0) {
-    // double array size and copy existing data, head to end, then beginning to tail.
-    var newList = this._copyArray(true, this._list.length << 1);
-
-    this._tail = this._list.length;
-    this._head = 0;
-
-    this._list = newList;
-  } else {
-    this._tail = this._list.length;
-    this._list.length <<= 1;
-  }
-
-  this._capacityMask = (this._capacityMask << 1) | 1;
-};
-
-/**
- * Shrinks the internal list array.
- * @private
- */
-Denque.prototype._shrinkArray = function _shrinkArray() {
-  this._list.length >>>= 1;
-  this._capacityMask >>>= 1;
-};
-
-/**
- * Find the next power of 2, at least 4
- * @private
- * @param {number} num 
- * @returns {number}
- */
-Denque.prototype._nextPowerOf2 = function _nextPowerOf2(num) {
-  var log2 = Math.log(num) / Math.log(2);
-  var nextPow2 = 1 << (log2 + 1);
-
-  return Math.max(nextPow2, 4);
-}
-
-module.exports = Denque;
-
-
-/***/ },
-
 /***/ "./node_modules/generate-function/index.js"
 /*!*************************************************!*\
   !*** ./node_modules/generate-function/index.js ***!
@@ -7855,9 +7364,9 @@ class AccountManager {
         //         throw new Error('Произошла ошибка при добавлении аккаунта в базу данных');
         //   }
     }
-    async requestPlayerForCarPurchase(player) {
+    async requestPlayerDBData(player) {
         if (!this.allLoginnedPlayers.has(player)) {
-            throw new Error('Для покупки автомобиля необходимой войти в аккаунт');
+            throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
         }
         const currentPlayer = this.allLoginnedPlayers.get(player);
         //Почему то ts жалуется на то что currentPlayer.accountId может быть undefined, хотя была проверка на allLoginnedPlayers.has 
@@ -7866,6 +7375,12 @@ class AccountManager {
         const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayer.accountId);
         return currentPlayerDBData;
     }
+    requestPlayerAccountId(player) {
+        if (!this.allLoginnedPlayers.has(player)) {
+            throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
+        }
+        return this.allLoginnedPlayers.get(player)?.accountId;
+    }
     async changePlayerMoney(accountId, money) {
         try {
             await this.accountDBService.updateRowByPrimaryKey(accountId, 'money', money);
@@ -7873,11 +7388,9 @@ class AccountManager {
         catch (error) {
         }
     }
-    /*     async test(){
-            const playerLogin = "test";
-            const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
-            console.log('currentPlayerDBData', currentPlayerDBData);
-        } */
+    checkIsPlayerLoggedIn(player) {
+        this.allLoginnedPlayers.has(player);
+    }
     //дебаг команда, команда потом убрать
     printAllLoginnedPlayers() {
         alt_server__WEBPACK_IMPORTED_MODULE_0__.log('Весь allLoginnedPlayers');
@@ -7908,17 +7421,19 @@ class CarShopServer {
     config;
     vehicleDBService;
     accoutManager;
+    //в теории можно убрать и полностью перейти на Meta и после проверки машины на наличие нужной меты проболжать покупку, но мне кажется с set тоже нормально (надесь это не плодит лишние сущности)
     activeVehiclesForSale;
     constructor(config, vehicleDBService, accoutManager) {
         this.config = config;
         this.vehicleDBService = vehicleDBService;
         this.accoutManager = accoutManager;
         this.activeVehiclesForSale = new Set();
-        this.#registerEventListeners();
+        this._registerEventListeners();
     }
-    #registerEventListeners() {
+    _registerEventListeners() {
         alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].onClient('carShop:onVehiclePurchase', (player, vehicle) => {
             if (this.activeVehiclesForSale.has(vehicle)) {
+                alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].getVehicleModelInfoByHash;
             }
         });
     }
@@ -7950,8 +7465,11 @@ class CarShopServer {
         }
         if (vehicle.hasStreamSyncedMeta('CarForSaleId')) {
             try {
-                const currentPlayerDBData = await this.accoutManager.requestPlayerForCarPurchase(player);
-                const price = vehicle.getStreamSyncedMeta('CarForSaleId');
+                const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
+                const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId');
+                const vehConfigInfo = this.config.vehiclesForSale.at(CarForSaleId);
+                //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
+                const price = vehConfigInfo.price;
                 if ((currentPlayerDBData.money ?? 0) >= price) {
                     //Вопрос кто должен заниматься подсчетами и нужно ли по ООП проводить запрос
                     //на изщменение суммы через AccoutManager или можно сразу оптравлять в AccountDBService
@@ -7961,7 +7479,8 @@ class CarShopServer {
                         ownerId: currentPlayerDBData.accountId,
                         model: vehicle.model,
                         mainColour: vehicle.customPrimaryColor,
-                        secondaryColour: vehicle.customSecondaryColor
+                        secondaryColour: vehicle.customSecondaryColor,
+                        price: price
                     });
                     chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
                     vehicle.deleteStreamSyncedMeta('CarForSaleId');
@@ -7980,6 +7499,8 @@ class CarShopServer {
             chat.send(player, 'Произошла ошибка, нет цены у авто');
             return;
         }
+    }
+    onMyVehsCommand(player) {
     }
     sendPlayerCarsForSale(player) {
     }
@@ -8089,6 +7610,9 @@ class CommandManager {
                 chat.send(player, 'Произошла  ошибка:', error);
             }
         });
+        // myvehs
+        chat.registerCmd('myvehs', (player) => {
+        });
         // register login password repeat-password
         /*         chat.registerCmd('login', (player: alt.Player, login:string, password:string) => {
                     //chat.send(player, 'test message with args:');
@@ -8099,34 +7623,6 @@ class CommandManager {
                     }
                     chat.send(player, 'Вы успешно вошли в аккаунт');
                 }); */
-    }
-}
-
-
-/***/ },
-
-/***/ "./server/ConfigManager.ts"
-/*!*********************************!*\
-  !*** ./server/ConfigManager.ts ***!
-  \*********************************/
-(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   ConfigManager: () => (/* binding */ ConfigManager)
-/* harmony export */ });
-//import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
-class ConfigManager {
-    config;
-    constructor(config) {
-        this.config = config;
-        this.#init();
-    }
-    #init() {
-        console.log("vehiclesForSale", this.config);
-        this.#modifyConfigData();
-    }
-    #modifyConfigData() {
     }
 }
 
@@ -8201,16 +7697,18 @@ class BaseDBService {
         //так как в бд отправляется строка { r: 0, g: 255, b: 0, a: 255 } вместо { "r": 0, "g": 255, "b": 0, "a": 255 }
         //поэтому перед отправкой надо сделать JSON.stringify, а для того что бы на такое не ругался ts нужно сделать values as any
         //по идее values as any ничем не мешает так как проверка на правильный тип значений уже была выполнена в values: Insertable<Database[T]>
-        const preparedValues = values;
-        for (const key in preparedValues) {
-            const currentValue = preparedValues[key];
-            if (typeof currentValue === 'object') {
-                preparedValues[key] = JSON.stringify(currentValue);
-            }
-        }
+        /*         const preparedValues = values as any;
+        
+                for (const key in preparedValues) {
+                    const currentValue = preparedValues[key];
+                    if (typeof currentValue === 'object') {
+                        preparedValues[key] = JSON.stringify(currentValue);
+                    }
+                }
+         */
         await this.db
             .insertInto(this.tableName)
-            .values(preparedValues)
+            .values(values)
             .execute();
     }
     /*     async sqlRequestUpdateRowByPrimaryKey(primaryKeyValue: any, columnName: string, value: string){
@@ -8264,10 +7762,11 @@ __webpack_require__.r(__webpack_exports__);
 CREATE TABLE vehicles (
     vehId INT AUTO_INCREMENT PRIMARY KEY,
     ownerId INT NOT NULL,
-    model VARCHAR(50) NOT NULL,
+    model INT NOT NULL,
     mainColour VARCHAR(50) NOT NULL,
     secondaryColour VARCHAR(50) NOT NULL,
     registrationNumber VARCHAR(50) UNIQUE,
+    price INT,
     CONSTRAINT vehicle_owner FOREIGN KEY (ownerId) REFERENCES account(accountId) ON DELETE CASCADE
 );
 */
@@ -10145,6 +9644,11 @@ exports.__defineGetter__(
 
 exports.__defineGetter__('Types', () => __webpack_require__(/*! ./lib/constants/types.js */ "./node_modules/mysql2/lib/constants/types.js"));
 
+exports.__defineGetter__(
+  'TypedParameter',
+  () => (__webpack_require__(/*! ./lib/packets/typed_parameter.js */ "./node_modules/mysql2/lib/packets/typed_parameter.js").types)
+);
+
 exports.__defineGetter__('Charsets', () =>
   __webpack_require__(/*! ./lib/constants/charsets.js */ "./node_modules/mysql2/lib/constants/charsets.js")
 );
@@ -10595,7 +10099,7 @@ const Tls = __webpack_require__(/*! tls */ "tls");
 const Timers = __webpack_require__(/*! timers */ "timers");
 const EventEmitter = (__webpack_require__(/*! events */ "events").EventEmitter);
 const Readable = (__webpack_require__(/*! stream */ "stream").Readable);
-const Queue = __webpack_require__(/*! denque */ "./node_modules/denque/index.js");
+const Queue = __webpack_require__(/*! ../ring_queue.js */ "./node_modules/mysql2/lib/ring_queue.js");
 const SqlString = __webpack_require__(/*! sql-escaper */ "./node_modules/sql-escaper/lib/index.js");
 const { createLRU } = __webpack_require__(/*! lru.min */ "./node_modules/lru.min/lib/index.js");
 const PacketParser = __webpack_require__(/*! ../packet_parser.js */ "./node_modules/mysql2/lib/packet_parser.js");
@@ -10679,7 +10183,8 @@ class BaseConnection extends EventEmitter {
       this.handlePacket(p);
     });
     this.stream.on('data', (data) => {
-      if (this.connectTimeout) {
+      // Server-side connections do not run ClientHandshake.
+      if (this.connectTimeout && this.config.isServer) {
         Timers.clearTimeout(this.connectTimeout);
         this.connectTimeout = null;
       }
@@ -10708,6 +10213,10 @@ class BaseConnection extends EventEmitter {
     if (!this.config.isServer) {
       handshakeCommand = new Commands.ClientHandshake(this.config.clientFlags);
       handshakeCommand.on('end', () => {
+        if (this.connectTimeout) {
+          Timers.clearTimeout(this.connectTimeout);
+          this.connectTimeout = null;
+        }
         // this happens when handshake finishes early either because there was
         // some fatal error or the server sent an error packet instead of
         // an hello packet (for example, 'Too many connections' error)
@@ -10735,7 +10244,6 @@ class BaseConnection extends EventEmitter {
           connectChannel,
           () =>
             new Promise((resolve, reject) => {
-              /* eslint-disable prefer-const */
               let onConnect, onError;
               onConnect = (param) => {
                 this.removeListener('error', onError);
@@ -10745,7 +10253,6 @@ class BaseConnection extends EventEmitter {
                 this.removeListener('connect', onConnect);
                 reject(err);
               };
-              /* eslint-enable prefer-const */
               this.once('connect', onConnect);
               this.once('error', onError);
             }),
@@ -10846,13 +10353,11 @@ class BaseConnection extends EventEmitter {
       // connection handshake is special because we allow it to be implicit
       // if error happened during handshake, but there are others commands in queue
       // then bubble error to other commands and not to connection
-    } else if (
-      !(
-        this._command &&
-        this._command.constructor === Commands.ClientHandshake &&
-        this._commands.length > 0
-      )
-    ) {
+    } else if (!(
+      this._command &&
+      this._command.constructor === Commands.ClientHandshake &&
+      this._commands.length > 0
+    )) {
       bubbleErrorToConnection = true;
     }
     while ((command = this._commands.shift())) {
@@ -11070,7 +10575,9 @@ class BaseConnection extends EventEmitter {
 
   handlePacket(packet) {
     if (this._paused) {
-      this._paused_packets.push(packet);
+      // the parser reuses its packet instance; keep a stable copy when
+      // queueing for later
+      this._paused_packets.push(packet ? packet.clone() : packet);
       return;
     }
     if (this.config.debug) {
@@ -11158,7 +10665,7 @@ class BaseConnection extends EventEmitter {
     return cmd;
   }
 
-  format(sql, values) {
+  format(sql, values, namedPlaceholders) {
     if (typeof this.config.queryFormat === 'function') {
       return this.config.queryFormat.call(
         this,
@@ -11171,6 +10678,9 @@ class BaseConnection extends EventEmitter {
       sql: sql,
       values: values,
     };
+    if (typeof namedPlaceholders !== 'undefined') {
+      opts.namedPlaceholders = namedPlaceholders;
+    }
     this._resolveNamedPlaceholders(opts);
     return SqlString.format(
       opts.sql,
@@ -11194,7 +10704,10 @@ class BaseConnection extends EventEmitter {
 
   _resolveNamedPlaceholders(options) {
     let unnamed;
-    if (this.config.namedPlaceholders || options.namedPlaceholders) {
+    if (typeof options.namedPlaceholders === 'undefined') {
+      options.namedPlaceholders = this.config.namedPlaceholders;
+    }
+    if (options.namedPlaceholders) {
       if (Array.isArray(options.values)) {
         // if an array is provided as the values, assume the conversion is not necessary.
         // this allows the usage of unnamed placeholders even if the namedPlaceholders flag is enabled.
@@ -11219,7 +10732,8 @@ class BaseConnection extends EventEmitter {
     this._resolveNamedPlaceholders(cmdQuery);
     const rawSql = this.format(
       cmdQuery.sql,
-      cmdQuery.values !== undefined ? cmdQuery.values : []
+      cmdQuery.values !== undefined ? cmdQuery.values : [],
+      cmdQuery.namedPlaceholders
     );
     cmdQuery.sql = rawSql;
 
@@ -11572,7 +11086,6 @@ class BaseConnection extends EventEmitter {
       return cb(null, this);
     }
 
-    /* eslint-disable prefer-const */
     let onError, onConnect;
 
     onError = (param) => {
@@ -11584,7 +11097,6 @@ class BaseConnection extends EventEmitter {
       this.removeListener('error', onError);
       cb(null, param);
     };
-    /* eslint-enable prefer-const */
 
     this.once('error', onError);
     this.once('connect', onConnect);
@@ -11730,7 +11242,7 @@ const process = __webpack_require__(/*! process */ "process");
 const SqlString = __webpack_require__(/*! sql-escaper */ "./node_modules/sql-escaper/lib/index.js");
 const EventEmitter = (__webpack_require__(/*! events */ "events").EventEmitter);
 const PoolConnection = __webpack_require__(/*! ../pool_connection.js */ "./node_modules/mysql2/lib/pool_connection.js");
-const Queue = __webpack_require__(/*! denque */ "./node_modules/denque/index.js");
+const Queue = __webpack_require__(/*! ../ring_queue.js */ "./node_modules/mysql2/lib/ring_queue.js");
 const BaseConnection = __webpack_require__(/*! ./connection.js */ "./node_modules/mysql2/lib/base/connection.js");
 const Errors = __webpack_require__(/*! ../constants/errors.js */ "./node_modules/mysql2/lib/constants/errors.js");
 const {
@@ -11779,6 +11291,23 @@ class BasePool extends EventEmitter {
     }
   }
 
+  /**
+   * Creates a per-connection copy of the pool connection config.
+   *
+   * Commands like `changeUser` mutate `connection.config` in place. Sharing a
+   * single config object between every pooled connection made those mutations
+   * leak into connections created later. The prototype is preserved so the
+   * copy is still a `ConnectionConfig`.
+   */
+  _createConnectionConfig() {
+    const { connectionConfig } = this.config;
+
+    return Object.create(
+      Object.getPrototypeOf(connectionConfig),
+      Object.getOwnPropertyDescriptors(connectionConfig)
+    );
+  }
+
   getConnection(cb) {
     const _getConnection = (cb) => {
       if (this._closed) {
@@ -11798,7 +11327,7 @@ class BasePool extends EventEmitter {
         this._allConnections.length < this.config.connectionLimit
       ) {
         connection = new PoolConnection(this, {
-          config: this.config.connectionConfig,
+          config: this._createConnectionConfig(),
         });
         this._allConnections.push(connection);
         return connection.connect((err) => {
@@ -11980,7 +11509,11 @@ class BasePool extends EventEmitter {
         });
       } catch (e) {
         conn.release();
-        throw e;
+        if (typeof cmdQuery.onResult === 'function') {
+          cmdQuery.onResult(e);
+        } else {
+          cmdQuery.emit('error', e);
+        }
       }
     });
     return cmdQuery;
@@ -12312,7 +11845,8 @@ class RotateEvent {
 class FormatDescriptionEvent {
   constructor(packet) {
     this.binlogVersion = packet.readInt16();
-    this.serverVersion = packet.readString(50).replace(/\u0000.*/, ''); // eslint-disable-line no-control-regex
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: the server version string is NUL-terminated
+    this.serverVersion = packet.readString(50).replace(/\u0000.*/, '');
     this.createTimestamp = packet.readInt32();
     this.eventHeaderLength = packet.readInt8(); // should be 19
     this.eventsLength = packet.readBuffer();
@@ -12975,6 +12509,8 @@ class Execute extends Command {
     this.queryTimeout = null;
     this._rows = [];
     this._fields = [];
+    this._currentRows = null;
+    this._currentFields = null;
     this._result = [];
     this._fieldCount = 0;
     this._rowParser = null;
@@ -13007,7 +12543,8 @@ class Execute extends Command {
       connection.config.timezone,
       this._executeOptions.attributes,
       clientFlags,
-      connection._isMariaDB
+      connection._isMariaDB,
+      this.statement.parameters
     );
     //For reasons why this try-catch is here, please see
     // https://github.com/sidorares/node-mysql2/pull/689
@@ -13358,7 +12895,12 @@ class Query extends Command {
     this.sql = options.sql;
     this.values = options.values;
     this._queryOptions = options;
-    this.namedPlaceholders = options.namedPlaceholders || false;
+    this.namedPlaceholders = Object.prototype.hasOwnProperty.call(
+      options,
+      'namedPlaceholders'
+    )
+      ? options.namedPlaceholders
+      : undefined;
     this.onResult = callback;
     this.timeout = options.timeout;
     this.queryTimeout = null;
@@ -13366,6 +12908,8 @@ class Query extends Command {
     this._rowParser = null;
     this._fields = [];
     this._rows = [];
+    this._currentRows = null;
+    this._currentFields = null;
     this._receivedFieldsCount = 0;
     this._resultIndex = 0;
     this._localStream = null;
@@ -13382,7 +12926,6 @@ class Query extends Command {
     throw new Error(err);
   }
 
-  /* eslint no-unused-vars: ["error", { "argsIgnorePattern": "^_" }] */
   start(_packet, connection) {
     if (connection.config.debug) {
       console.log('        Sending query command: %s', this.sql);
@@ -13471,8 +13014,10 @@ class Query extends Command {
       return this._streamLocalInfile(connection, rs.infileName);
     }
     this._receivedFieldsCount = 0;
-    this._rows.push([]);
-    this._fields.push([]);
+    this._currentRows = [];
+    this._currentFields = [];
+    this._rows.push(this._currentRows);
+    this._fields.push(this._currentFields);
     return this.readField;
   }
 
@@ -13586,17 +13131,13 @@ class Query extends Command {
     }
     let row;
     try {
-      row = this._rowParser.next(
-        packet,
-        this._fields[this._resultIndex],
-        this.options
-      );
+      row = this._rowParser.next(packet, this._currentFields, this.options);
     } catch (err) {
       this._localStreamError = err;
       return this.doneInsert(null);
     }
     if (this.onResult) {
-      this._rows[this._resultIndex].push(row);
+      this._currentRows.push(row);
     } else {
       this.emit('result', row, this._resultIndex);
     }
@@ -14077,10 +13618,12 @@ class Queue {
 }
 
 function handleCompressedPacket(packet) {
-  // eslint-disable-next-line consistent-this, no-invalid-this
   const connection = this;
   const deflatedLength = packet.readInt24();
   const body = packet.readBuffer();
+  // the packet parser reuses its packet instance, so everything needed after
+  // the queued (asynchronous) inflate step must be read out now
+  const numPackets = packet.numPackets;
 
   if (deflatedLength !== 0) {
     connection.inflateQueue.push((task) => {
@@ -14089,14 +13632,14 @@ function handleCompressedPacket(packet) {
           connection._handleNetworkError(err);
           return;
         }
-        connection._bumpCompressedSequenceId(packet.numPackets);
+        connection._bumpCompressedSequenceId(numPackets);
         connection._inflatedPacketsParser.execute(data);
         task.done();
       });
     });
   } else {
     connection.inflateQueue.push((task) => {
-      connection._bumpCompressedSequenceId(packet.numPackets);
+      connection._bumpCompressedSequenceId(numPackets);
       connection._inflatedPacketsParser.execute(body);
       task.done();
     });
@@ -14115,7 +13658,6 @@ function writeCompressed(buffer) {
   if (buffer.length > MAX_COMPRESSED_LENGTH) {
     for (start = 0; start < buffer.length; start += MAX_COMPRESSED_LENGTH) {
       writeCompressed.call(
-        // eslint-disable-next-line no-invalid-this
         this,
         buffer.slice(start, start + MAX_COMPRESSED_LENGTH)
       );
@@ -14123,7 +13665,6 @@ function writeCompressed(buffer) {
     return;
   }
 
-  // eslint-disable-next-line no-invalid-this, consistent-this
   const connection = this;
 
   let packetLen = buffer.length;
@@ -19548,6 +19089,7 @@ module.exports = {
   0x0e: 'NEWDATE', // aka ?
   0x0f: 'VARCHAR', // aka VARCHAR (?)
   0x10: 'BIT', // aka BIT, 1-8 byte
+  0xf2: 'VECTOR',
   0xf5: 'JSON',
   0xf6: 'NEWDECIMAL', // aka DECIMAL
   0xf7: 'ENUM', // aka ENUM
@@ -19789,6 +19331,10 @@ class PacketParser {
     this.largePacketParts = [];
     this.firstPacketSequenceId = 0;
     this.onPacket = onPacket;
+    // complete packets are handed to onPacket through this single mutable
+    // instance; consumers that keep a packet past the synchronous callback
+    // (e.g. a paused connection) must clone() it
+    this._reusablePacket = new Packet(0, Buffer.allocUnsafe(4), 0, 4);
     this.execute = PacketParser.prototype.executeStart;
     this._flushLargePacket =
       packetHeaderLength === 7
@@ -19828,14 +19374,14 @@ class PacketParser {
           this.length < MAX_PACKET_LENGTH &&
           this.largePacketParts.length === 0
         ) {
-          this.onPacket(
-            new Packet(
-              sequenceId,
-              chunk,
-              start,
-              start + this.packetHeaderLength + this.length
-            )
-          );
+          const packet = this._reusablePacket;
+          packet.sequenceId = sequenceId;
+          packet.numPackets = 1;
+          packet.buffer = chunk;
+          packet.start = start;
+          packet.offset = start + 4;
+          packet.end = start + this.packetHeaderLength + this.length;
+          this.onPacket(packet);
         } else {
           // first large packet - remember it's id
           if (this.largePacketParts.length === 0) {
@@ -19892,14 +19438,14 @@ class PacketParser {
         this.length < MAX_PACKET_LENGTH &&
         this.largePacketParts.length === 0
       ) {
-        this.onPacket(
-          new Packet(
-            sequenceId,
-            payload,
-            0,
-            this.length + this.packetHeaderLength
-          )
-        );
+        const packet = this._reusablePacket;
+        packet.sequenceId = sequenceId;
+        packet.numPackets = 1;
+        packet.buffer = payload;
+        packet.start = 0;
+        packet.offset = 4;
+        packet.end = this.length + this.packetHeaderLength;
+        this.onPacket(packet);
       } else {
         // first large packet - remember it's id
         if (this.largePacketParts.length === 0) {
@@ -20836,24 +20382,25 @@ class ColumnDefinition {
 }
 
 const addString = function (name) {
+  const cacheKey = `_${name}Value`;
+  const startKey = `_${name}Start`;
+  const lengthKey = `_${name}Length`;
+  ColumnDefinition.prototype[cacheKey] = undefined;
   Object.defineProperty(ColumnDefinition.prototype, name, {
     get: function () {
-      const start = this[`_${name}Start`];
-      const end = start + this[`_${name}Length`];
+      const cached = this[cacheKey];
+      if (cached !== undefined) {
+        return cached;
+      }
+      const start = this[startKey];
+      const end = start + this[lengthKey];
       const val = StringParser.decode(
         this._buf,
         this.encoding === 'binary' ? this._clientEncoding : this.encoding,
         start,
         end
       );
-
-      Object.defineProperty(this, name, {
-        value: val,
-        writable: false,
-        configurable: false,
-        enumerable: false,
-      });
-
+      this[cacheKey] = val;
       return val;
     },
   });
@@ -20885,6 +20432,13 @@ module.exports = ColumnDefinition;
 
 const Types = __webpack_require__(/*! ../constants/types */ "./node_modules/mysql2/lib/constants/types.js");
 const Packet = __webpack_require__(/*! ../packets/packet */ "./node_modules/mysql2/lib/packets/packet.js");
+const StringParser = __webpack_require__(/*! ../parsers/string.js */ "./node_modules/mysql2/lib/parsers/string.js");
+const {
+  TypedParameter,
+  encodeTypedParameter,
+  integerHint,
+} = __webpack_require__(/*! ./typed_parameter.js */ "./node_modules/mysql2/lib/packets/typed_parameter.js");
+const FieldFlags = __webpack_require__(/*! ../constants/field_flags.js */ "./node_modules/mysql2/lib/constants/field_flags.js");
 
 function isJSON(value) {
   return (
@@ -20894,13 +20448,23 @@ function isJSON(value) {
   );
 }
 
-function toParameter(value, encoding, timezone, jsonAsString) {
+function toParameter(value, encoding, timezone, jsonAsString, hint) {
+  if (value instanceof TypedParameter) {
+    return encodeTypedParameter(value, encoding, timezone, jsonAsString);
+  }
+  if (hint) {
+    const hinted = integerHint(
+      value,
+      hint.columnType,
+      Boolean(hint.flags & FieldFlags.UNSIGNED)
+    );
+    if (hinted) {
+      return encodeTypedParameter(hinted, encoding, timezone, jsonAsString);
+    }
+  }
   let type = Types.VAR_STRING;
   let length;
-  let writer = function (value) {
-    // eslint-disable-next-line no-invalid-this
-    return Packet.prototype.writeLengthCodedString.call(this, value, encoding);
-  };
+  let writer = Packet.prototype.writeLengthCodedBuffer;
   if (value !== null) {
     switch (typeof value) {
       case 'undefined':
@@ -20924,7 +20488,6 @@ function toParameter(value, encoding, timezone, jsonAsString) {
           type = Types.DATETIME;
           length = 12;
           writer = function (value) {
-            // eslint-disable-next-line no-invalid-this
             return Packet.prototype.writeDate.call(this, value, timezone);
           };
         } else if (isJSON(value)) {
@@ -20952,12 +20515,38 @@ function toParameter(value, encoding, timezone, jsonAsString) {
   } else {
     value = '';
     type = Types.NULL;
+    length = 0;
+    writer = writeNothing;
   }
-  if (!length) {
-    length = Packet.lengthCodedStringLength(value, encoding);
+  let byteLength;
+  if (length === undefined) {
+    // a non-string here (e.g. a Uint8Array) keeps the Buffer.from coercion
+    // inside StringParser.encode
+    if (
+      typeof value === 'string' &&
+      StringParser.hasFastUtf8Write &&
+      (encoding === 'utf8' || encoding === 'utf-8')
+    ) {
+      byteLength = Buffer.byteLength(value, 'utf8');
+      length = Packet.lengthCodedNumberLength(byteLength) + byteLength;
+      writer = Packet.prototype.writeLengthCodedUtf8String;
+    } else {
+      value = StringParser.encode(value, encoding);
+      length = Packet.lengthCodedNumberLength(value.length) + value.length;
+    }
   }
-  return { value, type, length, writer };
+  return {
+    value,
+    type,
+    length,
+    byteLength,
+    writer,
+    unsigned: false,
+    isNull: type === Types.NULL,
+  };
 }
+
+function writeNothing() {}
 
 module.exports = { toParameter, isJSON };
 
@@ -20977,6 +20566,7 @@ const CommandCodes = __webpack_require__(/*! ../constants/commands */ "./node_mo
 const ClientConstants = __webpack_require__(/*! ../constants/client */ "./node_modules/mysql2/lib/constants/client.js");
 const Types = __webpack_require__(/*! ../constants/types */ "./node_modules/mysql2/lib/constants/types.js");
 const Packet = __webpack_require__(/*! ../packets/packet */ "./node_modules/mysql2/lib/packets/packet.js");
+const StringParser = __webpack_require__(/*! ../parsers/string.js */ "./node_modules/mysql2/lib/parsers/string.js");
 const CharsetToEncoding = __webpack_require__(/*! ../constants/charset_encodings.js */ "./node_modules/mysql2/lib/constants/charset_encodings.js");
 const { toParameter } = __webpack_require__(/*! ./encode_parameter.js */ "./node_modules/mysql2/lib/packets/encode_parameter.js");
 
@@ -20988,7 +20578,8 @@ class Execute {
     timezone,
     attributes,
     clientFlags,
-    jsonAsString
+    jsonAsString,
+    parameterDefinitions
   ) {
     this.id = id;
     this.parameters = parameters;
@@ -20997,6 +20588,7 @@ class Execute {
     this.attributes = attributes;
     this.clientFlags = clientFlags || 0;
     this.jsonAsString = jsonAsString || false;
+    this.parameterDefinitions = parameterDefinitions || [];
   }
 
   static fromPacket(packet, encoding) {
@@ -21067,7 +20659,7 @@ class Execute {
     return { stmtId, flags, iterationCount, values };
   }
 
-  _serializeToBuffer(buffer) {
+  toPacket() {
     const useQueryAttributes =
       this.clientFlags & ClientConstants.CLIENT_QUERY_ATTRIBUTES;
 
@@ -21077,7 +20669,53 @@ class Execute {
     const numAttrs = attrNames.length;
     const totalParams = numParams + numAttrs;
 
-    const packet = new Packet(0, buffer, 0, buffer.length);
+    // packet header, command, statement id, cursor flags, iteration count
+    let length = 14;
+    if (useQueryAttributes) {
+      length += Packet.lengthCodedNumberLength(totalParams);
+    }
+
+    let allParams = null;
+    let attrNameBuffers = null;
+    if (totalParams > 0) {
+      allParams = new Array(totalParams);
+      for (let i = 0; i < numParams; i++) {
+        allParams[i] = toParameter(
+          this.parameters[i],
+          this.encoding,
+          this.timezone,
+          this.jsonAsString,
+          this.parameterDefinitions[i]
+        );
+      }
+      for (let i = 0; i < numAttrs; i++) {
+        allParams[numParams + i] = toParameter(
+          this.attributes[attrNames[i]],
+          this.encoding,
+          this.timezone
+        );
+      }
+
+      // null bitmap, new-params-bound flag, type and unsigned byte per parameter
+      length += ((totalParams + 7) >> 3) + 1 + totalParams * 2;
+      if (useQueryAttributes) {
+        // one empty length-coded name per bind parameter
+        length += numParams;
+        attrNameBuffers = new Array(numAttrs);
+        for (let i = 0; i < numAttrs; i++) {
+          const name = StringParser.encode(attrNames[i], this.encoding);
+          attrNameBuffers[i] = name;
+          length += Packet.lengthCodedNumberLength(name.length) + name.length;
+        }
+      }
+      for (let i = 0; i < totalParams; i++) {
+        if (!allParams[i].isNull) {
+          length += allParams[i].length;
+        }
+      }
+    }
+
+    const packet = new Packet(0, Buffer.allocUnsafe(length), 0, length);
     packet.offset = 4;
     packet.writeInt8(CommandCodes.STMT_EXECUTE);
     packet.writeInt32(this.id);
@@ -21094,23 +20732,11 @@ class Execute {
     }
 
     if (totalParams > 0) {
-      const bindParams =
-        numParams > 0
-          ? this.parameters.map((v) =>
-              toParameter(v, this.encoding, this.timezone, this.jsonAsString)
-            )
-          : [];
-      const attrParams = attrNames.map((name) =>
-        toParameter(this.attributes[name], this.encoding, this.timezone)
-      );
-      const allParams = bindParams.concat(attrParams);
-
-      // null bitmap
       let bitmap = 0;
       let bitValue = 1;
-      allParams.forEach((parameter) => {
-        if (parameter.type === Types.NULL) {
-          bitmap += bitValue;
+      for (let i = 0; i < totalParams; i++) {
+        if (allParams[i].isNull) {
+          bitmap |= bitValue;
         }
         bitValue *= 2;
         if (bitValue === 256) {
@@ -21118,37 +20744,40 @@ class Execute {
           bitmap = 0;
           bitValue = 1;
         }
-      });
+      }
       if (bitValue !== 1) {
         packet.writeInt8(bitmap);
       }
 
       packet.writeInt8(1); // new-params-bound-flag
 
-      // types (and names for attributes)
-      for (let i = 0; i < allParams.length; i++) {
-        packet.writeInt8(allParams[i].type);
-        packet.writeInt8(0); // unsigned flag
+      for (let i = 0; i < totalParams; i++) {
+        const parameter = allParams[i];
+        packet.writeInt8(parameter.type);
+        packet.writeInt8(parameter.unsigned ? 0x80 : 0);
         if (useQueryAttributes) {
-          const name = i < numParams ? '' : attrNames[i - numParams];
-          packet.writeLengthCodedString(name, this.encoding);
+          if (i < numParams) {
+            packet.writeInt8(0); // bind parameters have an empty name
+          } else {
+            packet.writeLengthCodedBuffer(attrNameBuffers[i - numParams]);
+          }
         }
       }
 
-      // values
-      allParams.forEach((parameter) => {
-        if (parameter.type !== Types.NULL) {
-          parameter.writer.call(packet, parameter.value);
+      for (let i = 0; i < totalParams; i++) {
+        const parameter = allParams[i];
+        if (!parameter.isNull) {
+          parameter.writer.call(packet, parameter.value, parameter.byteLength);
         }
-      });
+      }
     }
 
+    if (packet.offset !== length) {
+      throw new Error(
+        `Internal error: COM_STMT_EXECUTE serialized ${packet.offset - 4} bytes, expected ${length - 4}`
+      );
+    }
     return packet;
-  }
-
-  toPacket() {
-    const p = this._serializeToBuffer(Packet.MockBuffer());
-    return this._serializeToBuffer(Buffer.allocUnsafe(p.offset));
   }
 }
 
@@ -21660,7 +21289,7 @@ const NativeBuffer = (__webpack_require__(/*! buffer */ "buffer").Buffer);
 const Long = __webpack_require__(/*! long */ "./node_modules/long/umd/index.js");
 const StringParser = __webpack_require__(/*! ../parsers/string.js */ "./node_modules/mysql2/lib/parsers/string.js");
 const Types = __webpack_require__(/*! ../constants/types.js */ "./node_modules/mysql2/lib/constants/types.js");
-const INVALID_DATE = new Date(NaN);
+const ZERO_DATE = '0000-00-00';
 
 // this is nearly duplicate of previous function so generated code is not slower
 // due to "if (dateStrings)" branching
@@ -21720,6 +21349,27 @@ function jsonBigNumberReviver(key, value, context) {
 const dot = '.'.charCodeAt(0);
 const exponent = 'e'.charCodeAt(0);
 const exponentCapital = 'E'.charCodeAt(0);
+const colon = ':'.charCodeAt(0);
+
+// '+HH:MM' / '-HH:MM' -> signed minutes, memoized on the last seen value
+// (the timezone is a per-connection constant in practice)
+let lastTimezone;
+let lastTimezoneOffset = null;
+function timezoneOffsetMinutes(timezone) {
+  if (timezone === lastTimezone) {
+    return lastTimezoneOffset;
+  }
+  let offset = null;
+  if (/^[+-]\d{2}:\d{2}$/.test(timezone)) {
+    offset =
+      (timezone[0] === '-' ? -1 : 1) *
+      (parseInt(timezone.substring(1, 3), 10) * 60 +
+        parseInt(timezone.substring(4), 10));
+  }
+  lastTimezone = timezone;
+  lastTimezoneOffset = offset;
+  return offset;
+}
 
 class Packet {
   constructor(id, buffer, start, end) {
@@ -21801,18 +21451,14 @@ class Packet {
   readInt64JSNumber() {
     const word0 = this.readInt32();
     const word1 = this.readInt32();
-    const l = new Long(word0, word1, true);
-    return l.toNumber();
+    // same value Long.toNumber() would produce, without the allocation
+    return word0 + 0x100000000 * word1;
   }
 
   readSInt64JSNumber() {
     const word0 = this.readInt32();
     const word1 = this.readInt32();
-    if (!(word1 & 0x80000000)) {
-      return word0 + 0x100000000 * word1;
-    }
-    const l = new Long(word0, word1, false);
-    return l.toNumber();
+    return word0 + 0x100000000 * (word1 | 0);
   }
 
   readInt64String() {
@@ -21832,17 +21478,21 @@ class Packet {
   readInt64() {
     const word0 = this.readInt32();
     const word1 = this.readInt32();
-    const res = new Long(word0, word1, true);
-    const resNumber = res.toNumber();
-    return Number.isSafeInteger(resNumber) ? resNumber : res.toString();
+    const resNumber = word0 + 0x100000000 * word1;
+    if (Number.isSafeInteger(resNumber)) {
+      return resNumber;
+    }
+    return new Long(word0, word1, true).toString();
   }
 
   readSInt64() {
     const word0 = this.readInt32();
     const word1 = this.readInt32();
-    const res = new Long(word0, word1, false);
-    const resNumber = res.toNumber();
-    return Number.isSafeInteger(resNumber) ? resNumber : res.toString();
+    const resNumber = word0 + 0x100000000 * (word1 | 0);
+    if (Number.isSafeInteger(resNumber)) {
+      return resNumber;
+    }
+    return new Long(word0, word1, false).toString();
   }
 
   isEOF() {
@@ -21959,7 +21609,7 @@ class Packet {
       // possible MySQL flavours we still need to account for the
       // non-standard behaviour.
       if (y + m + d + H + M + S + ms === 0) {
-        return INVALID_DATE;
+        return new Date(NaN);
       }
       if (timezone === 'Z') {
         return new Date(Date.UTC(y, m - 1, d, H, M, S, ms));
@@ -21967,8 +21617,10 @@ class Packet {
       return new Date(y, m - 1, d, H, M, S, ms);
     }
     let str = this.readDateTimeString(6, 'T', null);
-    if (!str) {
-      return INVALID_DATE;
+    if (str.startsWith(ZERO_DATE)) {
+      // fresh instance: Date is mutable, a shared invalid-date singleton
+      // could be corrupted by callers (see the parseDateTime tests)
+      return new Date(NaN);
     }
     if (str.length === 10) {
       str += 'T00:00:00';
@@ -21985,7 +21637,7 @@ class Packet {
     let M = 0;
     let S = 0;
     let ms = 0;
-    let str;
+    let str = ZERO_DATE;
     if (length > 3) {
       y = this.readInt16();
       m = this.readInt8();
@@ -22055,7 +21707,7 @@ class Packet {
     return (
       (sign === -1 ? '-' : '') +
       [leftPad(2, d * 24 + H), leftPad(2, M), leftPad(2, S)].join(':') +
-      (ms ? `.${ms}`.replace(/0+$/, '') : '')
+      (ms ? `.${leftPad(6, ms)}`.replace(/0+$/, '') : '')
     );
   }
 
@@ -22373,10 +22025,75 @@ class Packet {
   }
 
   parseDateTime(timezone) {
-    const str = this.readLengthCodedString('binary');
-    if (str === null) {
+    const len = this.readLengthCodedNumber();
+    if (len === null) {
       return null;
     }
+    const b = this.buffer;
+    const s = this.offset;
+    // fast path for the wire format 'YYYY-MM-DD[ HH:MM:SS[.ffffff]]';
+    // parses digits straight from the buffer, avoiding both the intermediate
+    // string and the much slower Date-from-string constructor
+    if (
+      len >= 19 &&
+      b[s + 4] === minus &&
+      b[s + 7] === minus &&
+      b[s + 13] === colon &&
+      b[s + 16] === colon
+    ) {
+      const y =
+        (b[s] - 48) * 1000 +
+        (b[s + 1] - 48) * 100 +
+        (b[s + 2] - 48) * 10 +
+        (b[s + 3] - 48);
+      const mo = (b[s + 5] - 48) * 10 + (b[s + 6] - 48);
+      const d = (b[s + 8] - 48) * 10 + (b[s + 9] - 48);
+      if (mo === 0 || d === 0 || mo > 12 || d > 31) {
+        // matches Date-from-string behaviour for zero/invalid dates
+        this.offset += len;
+        return new Date(NaN);
+      }
+      if (y < 100) {
+        // new Date(y, ...) maps years 0-99 to 1900+y; let the string
+        // constructor handle this (out of MySQL's documented range anyway)
+        const str = StringParser.decode(b, 'binary', s, s + len);
+        this.offset += len;
+        return !timezone || timezone === 'local'
+          ? new Date(str)
+          : new Date(`${str}${timezone}`);
+      }
+      const h = (b[s + 11] - 48) * 10 + (b[s + 12] - 48);
+      const mi = (b[s + 14] - 48) * 10 + (b[s + 15] - 48);
+      const se = (b[s + 17] - 48) * 10 + (b[s + 18] - 48);
+      let ms = 0;
+      if (len > 20) {
+        // fractional part: Date resolution is ms, use the first 3 digits
+        let scale = 100;
+        for (let i = s + 20; i < s + len && scale >= 1; i++) {
+          ms += (b[i] - 48) * scale;
+          scale /= 10;
+        }
+      }
+      this.offset += len;
+      if (!timezone || timezone === 'local') {
+        return new Date(y, mo - 1, d, h, mi, se, ms);
+      }
+      const utc = Date.UTC(y, mo - 1, d, h, mi, se, ms);
+      if (timezone === 'Z') {
+        return new Date(utc);
+      }
+      const offsetMinutes = timezoneOffsetMinutes(timezone);
+      if (offsetMinutes !== null) {
+        return new Date(utc - offsetMinutes * 60000);
+      }
+      // not a fixed '+HH:MM' offset: preserve the legacy string behaviour
+      // (V8 accepts some timezone abbreviations in Date-from-string)
+      return new Date(
+        `${StringParser.decode(b, 'binary', s, s + len)}${timezone}`
+      );
+    }
+    const str = StringParser.decode(b, 'binary', s, s + len);
+    this.offset += len;
     if (!timezone || timezone === 'local') {
       return new Date(str);
     }
@@ -22513,6 +22230,44 @@ class Packet {
     this.offset += 8;
   }
 
+  writeFloat(n) {
+    this.buffer.writeFloatLE(n, this.offset);
+    this.offset += 4;
+  }
+
+  writeUIntLE(n, bytes) {
+    if (bytes === 8) {
+      this.buffer.writeBigUInt64LE(n, this.offset);
+    } else {
+      this.buffer.writeUIntLE(Number(n), this.offset, bytes);
+    }
+    this.offset += bytes;
+  }
+
+  // must match writeTime's choice of encoding byte for byte
+  static timeLength({ days, hours, minutes, seconds, microseconds }) {
+    if (!days && !hours && !minutes && !seconds && !microseconds) {
+      return 1;
+    }
+    return microseconds ? 13 : 9;
+  }
+
+  writeTime({ negative, days, hours, minutes, seconds, microseconds }) {
+    if (!days && !hours && !minutes && !seconds && !microseconds) {
+      this.writeInt8(0);
+      return;
+    }
+    this.writeInt8(microseconds ? 12 : 8);
+    this.writeInt8(negative ? 1 : 0);
+    this.writeInt32(days);
+    this.writeInt8(hours);
+    this.writeInt8(minutes);
+    this.writeInt8(seconds);
+    if (microseconds) {
+      this.writeInt32(microseconds);
+    }
+  }
+
   writeBuffer(b) {
     b.copy(this.buffer, this.offset);
     this.offset += b.length;
@@ -22552,6 +22307,18 @@ class Packet {
     this.writeLengthCodedNumber(buf.length);
     this.buffer.length && buf.copy(this.buffer, this.offset);
     this.offset += buf.length;
+  }
+
+  // byteLength, when the caller sized the packet, must be
+  // Buffer.byteLength(string, 'utf8'); only used where
+  // Buffer.prototype.utf8Write exists
+  writeLengthCodedUtf8String(string, byteLength) {
+    if (byteLength === undefined) {
+      byteLength = Buffer.byteLength(string, 'utf8');
+    }
+    this.writeLengthCodedNumber(byteLength);
+    this.buffer.utf8Write(string, this.offset, byteLength);
+    this.offset += byteLength;
   }
 
   writeLengthCodedBuffer(b) {
@@ -22647,7 +22414,7 @@ class Packet {
       return 3;
     }
     if (n < 0xffffff) {
-      return 5;
+      return 4;
     }
     return 9;
   }
@@ -22659,6 +22426,9 @@ class Packet {
   }
 
   static MockBuffer() {
+    if (Packet._mockBuffer) {
+      return Packet._mockBuffer;
+    }
     const noop = function () {};
     const res = Buffer.alloc(0);
     for (const op in NativeBuffer.prototype) {
@@ -22666,6 +22436,7 @@ class Packet {
         res[op] = noop;
       }
     }
+    Packet._mockBuffer = res;
     return res;
   }
 }
@@ -22696,6 +22467,18 @@ class PrepareStatement {
   }
 
   toPacket() {
+    if (
+      StringParser.hasFastUtf8Write &&
+      (this.encoding === 'utf8' || this.encoding === 'utf-8')
+    ) {
+      const length = 5 + Buffer.byteLength(this.query, 'utf8');
+      const buffer = Buffer.allocUnsafe(length);
+      buffer[4] = CommandCodes.STMT_PREPARE;
+      buffer.utf8Write(this.query, 5, length - 5);
+      const packet = new Packet(0, buffer, 0, length);
+      packet.offset = length;
+      return packet;
+    }
     const buf = StringParser.encode(this.query, this.encoding);
     const length = 5 + buf.length;
     const buffer = Buffer.allocUnsafe(length);
@@ -22751,8 +22534,20 @@ const CommandCode = __webpack_require__(/*! ../constants/commands.js */ "./node_
 const StringParser = __webpack_require__(/*! ../parsers/string.js */ "./node_modules/mysql2/lib/parsers/string.js");
 const CharsetToEncoding = __webpack_require__(/*! ../constants/charset_encodings.js */ "./node_modules/mysql2/lib/constants/charset_encodings.js");
 const ClientConstants = __webpack_require__(/*! ../constants/client.js */ "./node_modules/mysql2/lib/constants/client.js");
-const Types = __webpack_require__(/*! ../constants/types.js */ "./node_modules/mysql2/lib/constants/types.js");
 const { toParameter } = __webpack_require__(/*! ./encode_parameter.js */ "./node_modules/mysql2/lib/packets/encode_parameter.js");
+
+const { hasFastUtf8Write } = StringParser;
+
+function toQueryPacket(buffer, headerLength, length) {
+  buffer[4] = CommandCode.QUERY;
+  if (headerLength === 7) {
+    buffer[5] = 0; // parameter_count
+    buffer[6] = 1; // parameter_set_count, always 1
+  }
+  const packet = new Packet(0, buffer, 0, length);
+  packet.offset = length;
+  return packet;
+}
 
 class Query {
   constructor(sql, charsetNumber, attributes, clientFlags) {
@@ -22763,85 +22558,120 @@ class Query {
     this.clientFlags = clientFlags || 0;
   }
 
-  serializeToBuffer(buffer) {
-    const useQueryAttributes =
-      this.clientFlags & ClientConstants.CLIENT_QUERY_ATTRIBUTES;
-    const sqlBuf = StringParser.encode(this.query, this.encoding);
-    const packet = new Packet(0, buffer, 0, buffer.length);
-    packet.offset = 4;
-    packet.writeInt8(CommandCode.QUERY);
-
-    if (useQueryAttributes) {
-      const attrs = this.attributes;
-      const names = attrs ? Object.keys(attrs) : [];
-      const paramCount = names.length;
-
-      packet.writeLengthCodedNumber(paramCount);
-      packet.writeLengthCodedNumber(1); // parameter_set_count, always 1
-
-      if (paramCount > 0) {
-        const parameters = names.map((name) =>
-          toParameter(attrs[name], this.encoding, 'local')
-        );
-
-        // null bitmap
-        let bitmap = 0;
-        let bitValue = 1;
-        parameters.forEach((parameter) => {
-          if (parameter.type === Types.NULL) {
-            bitmap += bitValue;
-          }
-          bitValue *= 2;
-          if (bitValue === 256) {
-            packet.writeInt8(bitmap);
-            bitmap = 0;
-            bitValue = 1;
-          }
-        });
-        if (bitValue !== 1) {
-          packet.writeInt8(bitmap);
-        }
-
-        packet.writeInt8(1); // new_params_bind_flag
-
-        // types and names
-        for (let i = 0; i < paramCount; i++) {
-          packet.writeInt8(parameters[i].type);
-          packet.writeInt8(0); // unsigned flag
-          packet.writeLengthCodedString(names[i], this.encoding);
-        }
-
-        // values
-        parameters.forEach((parameter) => {
-          if (parameter.type !== Types.NULL) {
-            parameter.writer.call(packet, parameter.value);
-          }
-        });
-      }
-    }
-
-    packet.writeBuffer(sqlBuf);
-    return packet;
-  }
-
   toPacket() {
     const useQueryAttributes =
       this.clientFlags & ClientConstants.CLIENT_QUERY_ATTRIBUTES;
+    const attributeCount =
+      useQueryAttributes && this.attributes
+        ? Object.keys(this.attributes).length
+        : 0;
 
-    if (!useQueryAttributes) {
-      const buf = StringParser.encode(this.query, this.encoding);
-      const length = 5 + buf.length;
+    if (attributeCount === 0) {
+      // fast path: no attribute values to serialize, so the packet is the
+      // header plus the encoded SQL
+      const headerLength = useQueryAttributes ? 7 : 5;
+      if (
+        hasFastUtf8Write &&
+        (this.encoding === 'utf8' || this.encoding === 'utf-8')
+      ) {
+        const length = headerLength + Buffer.byteLength(this.query, 'utf8');
+        const buffer = Buffer.allocUnsafe(length);
+        buffer.utf8Write(this.query, headerLength, length - headerLength);
+        return toQueryPacket(buffer, headerLength, length);
+      }
+      if (Buffer.isEncoding(this.encoding)) {
+        const length =
+          headerLength + Buffer.byteLength(this.query, this.encoding);
+        const buffer = Buffer.allocUnsafe(length);
+        buffer.write(this.query, headerLength, this.encoding);
+        return toQueryPacket(buffer, headerLength, length);
+      }
+      const sqlBuffer = StringParser.encode(this.query, this.encoding);
+      const length = headerLength + sqlBuffer.length;
       const buffer = Buffer.allocUnsafe(length);
-      const packet = new Packet(0, buffer, 0, length);
-      packet.offset = 4;
-      packet.writeInt8(CommandCode.QUERY);
-      packet.writeBuffer(buf);
-      return packet;
+      sqlBuffer.copy(buffer, headerLength);
+      return toQueryPacket(buffer, headerLength, length);
     }
 
-    // dry run to calculate required buffer length
-    const p = this.serializeToBuffer(Packet.MockBuffer());
-    return this.serializeToBuffer(Buffer.allocUnsafe(p.offset));
+    const names = Object.keys(this.attributes);
+    const parameters = new Array(attributeCount);
+    const nameBuffers = new Array(attributeCount);
+
+    // packet header, command, parameter count, parameter_set_count (always
+    // the single-byte form), null bitmap, new_params_bind_flag, type and
+    // unsigned byte per parameter
+    let length =
+      5 +
+      Packet.lengthCodedNumberLength(attributeCount) +
+      1 +
+      ((attributeCount + 7) >> 3) +
+      1 +
+      attributeCount * 2;
+    for (let i = 0; i < attributeCount; i++) {
+      parameters[i] = toParameter(
+        this.attributes[names[i]],
+        this.encoding,
+        'local'
+      );
+      const name = StringParser.encode(names[i], this.encoding);
+      nameBuffers[i] = name;
+      length += Packet.lengthCodedNumberLength(name.length) + name.length;
+      if (!parameters[i].isNull) {
+        length += parameters[i].length;
+      }
+    }
+    const sqlBuffer = StringParser.encode(this.query, this.encoding);
+    length += sqlBuffer.length;
+
+    const packet = new Packet(0, Buffer.allocUnsafe(length), 0, length);
+    packet.offset = 4;
+    packet.writeInt8(CommandCode.QUERY);
+    packet.writeLengthCodedNumber(attributeCount);
+    packet.writeLengthCodedNumber(1); // parameter_set_count, always 1
+
+    let bitmap = 0;
+    let bitValue = 1;
+    for (let i = 0; i < attributeCount; i++) {
+      if (parameters[i].isNull) {
+        bitmap |= bitValue;
+      }
+      bitValue *= 2;
+      if (bitValue === 256) {
+        packet.writeInt8(bitmap);
+        bitmap = 0;
+        bitValue = 1;
+      }
+    }
+    if (bitValue !== 1) {
+      packet.writeInt8(bitmap);
+    }
+
+    packet.writeInt8(1); // new_params_bind_flag
+
+    for (let i = 0; i < attributeCount; i++) {
+      packet.writeInt8(parameters[i].type);
+      packet.writeInt8(parameters[i].unsigned ? 0x80 : 0);
+      packet.writeLengthCodedBuffer(nameBuffers[i]);
+    }
+
+    for (let i = 0; i < attributeCount; i++) {
+      if (!parameters[i].isNull) {
+        parameters[i].writer.call(
+          packet,
+          parameters[i].value,
+          parameters[i].byteLength
+        );
+      }
+    }
+
+    packet.writeBuffer(sqlBuffer);
+
+    if (packet.offset !== length) {
+      throw new Error(
+        `Internal error: COM_QUERY serialized ${packet.offset - 4} bytes, expected ${length - 4}`
+      );
+    }
+    return packet;
   }
 }
 
@@ -23021,7 +22851,6 @@ class ResultSetHeader {
               packet.readLengthCodedString(encoding);
           } else if (type === sessionInfoTypes.STATE_GTIDS) {
             // TODO: find if the first length coded string means anything. Usually comes as empty
-            // eslint-disable-next-line no-unused-vars
             const _unknownString = packet.readLengthCodedString(encoding);
             const gtid = packet.readLengthCodedString(encoding);
             stateChanges.gtids = gtid.split(',');
@@ -23160,6 +22989,407 @@ class TextRow {
 }
 
 module.exports = TextRow;
+
+
+/***/ },
+
+/***/ "./node_modules/mysql2/lib/packets/typed_parameter.js"
+/*!************************************************************!*\
+  !*** ./node_modules/mysql2/lib/packets/typed_parameter.js ***!
+  \************************************************************/
+(module, __unused_webpack_exports, __webpack_require__) {
+
+
+
+const Types = __webpack_require__(/*! ../constants/types.js */ "./node_modules/mysql2/lib/constants/types.js");
+const Packet = __webpack_require__(/*! ./packet.js */ "./node_modules/mysql2/lib/packets/packet.js");
+const StringParser = __webpack_require__(/*! ../parsers/string.js */ "./node_modules/mysql2/lib/parsers/string.js");
+
+const INTEGER_BYTES = {
+  [Types.TINY]: 1,
+  [Types.SHORT]: 2,
+  [Types.YEAR]: 2,
+  [Types.INT24]: 4,
+  [Types.LONG]: 4,
+  [Types.LONGLONG]: 8,
+};
+
+const TEMPORAL = [Types.DATE, Types.DATETIME, Types.TIMESTAMP];
+
+// MySQL rejects INT24, YEAR, ENUM, SET, BIT and GEOMETRY as bind types, and
+// MariaDB rejects JSON and VECTOR. Each is transmitted as the narrowest type
+// both servers accept, which carries the same value.
+const WIRE_TYPE = {
+  [Types.INT24]: Types.LONG,
+  [Types.YEAR]: Types.SHORT,
+  [Types.ENUM]: Types.STRING,
+  [Types.SET]: Types.STRING,
+  [Types.VECTOR]: Types.BLOB,
+};
+
+// Only these may be adopted from a server hint: they are valid bind types on
+// every server, so upgrading can never make a working statement fail.
+const HINT_UPGRADABLE = new Set([
+  Types.TINY,
+  Types.SHORT,
+  Types.LONG,
+  Types.LONGLONG,
+]);
+
+const LENGTH_CODED = [
+  Types.DECIMAL,
+  Types.NEWDECIMAL,
+  Types.VARCHAR,
+  Types.VAR_STRING,
+  Types.STRING,
+  Types.ENUM,
+  Types.SET,
+  Types.JSON,
+  Types.VECTOR,
+  Types.TINY_BLOB,
+  Types.MEDIUM_BLOB,
+  Types.LONG_BLOB,
+  Types.BLOB,
+];
+
+function writeNothing() {}
+
+const TIME_PATTERN = /^(-)?(\d+):([0-5]?\d):([0-5]?\d)(?:\.(\d{1,6}))?$/;
+
+class TypedParameter {
+  constructor(type, value, unsigned) {
+    this.type = type;
+    this.value = value;
+    this.unsigned = unsigned;
+  }
+
+  [Symbol.for('nodejs.util.inspect.custom')]() {
+    const name = Types[this.type] || `0x${this.type.toString(16)}`;
+    return `${name}${this.unsigned ? ' UNSIGNED' : ''}(${String(this.value)})`;
+  }
+}
+
+function toInteger(value, name) {
+  switch (typeof value) {
+    case 'bigint':
+      return value;
+    case 'boolean':
+      return value ? 1n : 0n;
+    case 'number':
+      if (!Number.isInteger(value)) {
+        throw new TypeError(
+          `${name} parameter must be an integer, got ${value}`
+        );
+      }
+      if (!Number.isSafeInteger(value)) {
+        throw new RangeError(
+          `${name} parameter ${value} exceeds Number.MAX_SAFE_INTEGER and has already lost precision; pass a string or BigInt instead`
+        );
+      }
+      return BigInt(value);
+    case 'string':
+      try {
+        return BigInt(value.trim());
+      } catch (cause) {
+        throw new TypeError(
+          `${name} parameter must be an integer, got ${JSON.stringify(value)}`,
+          { cause }
+        );
+      }
+    default:
+      throw new TypeError(
+        `${name} parameter must be an integer, got ${typeof value}`
+      );
+  }
+}
+
+function checkedInteger(value, type, bytes, unsigned) {
+  const name = Types[type];
+  const bits = BigInt(bytes * 8);
+  const n = toInteger(value, name);
+  const min = unsigned ? 0n : -(1n << (bits - 1n));
+  const max = unsigned ? (1n << bits) - 1n : (1n << (bits - 1n)) - 1n;
+  if (n < min || n > max) {
+    throw new RangeError(
+      `${name}${unsigned ? ' UNSIGNED' : ''} parameter out of range: ${n} is not within ${min}..${max}`
+    );
+  }
+  return n;
+}
+
+// The server reports an integer type whenever it knows a placeholder holds one,
+// and MySQL rejects a DOUBLE in some of those positions. Adopting the hint is
+// only safe when the value is already an integer that fits, so every other case
+// returns null and keeps the type inferred from JavaScript.
+function integerHint(value, type, unsigned) {
+  const bytes = INTEGER_BYTES[type];
+  if (!bytes || !HINT_UPGRADABLE.has(type)) {
+    return null;
+  }
+  let n;
+  if (typeof value === 'bigint') {
+    n = value;
+  } else if (typeof value === 'boolean') {
+    n = value ? 1n : 0n;
+  } else if (typeof value === 'number' && Number.isSafeInteger(value)) {
+    n = BigInt(value);
+  } else {
+    return null;
+  }
+  const bits = BigInt(bytes * 8);
+  const min = unsigned ? 0n : -(1n << (bits - 1n));
+  const max = unsigned ? (1n << bits) - 1n : (1n << (bits - 1n)) - 1n;
+  if (n < min || n > max) {
+    return null;
+  }
+  return new TypedParameter(type, n, unsigned);
+}
+
+function wireType(type, jsonAsString) {
+  if (type === Types.JSON && jsonAsString) {
+    return Types.VAR_STRING;
+  }
+  return WIRE_TYPE[type] || type;
+}
+
+function integerEncoder(type, bytes) {
+  return (value, unsigned) => {
+    const wire = BigInt.asUintN(
+      bytes * 8,
+      checkedInteger(value, type, bytes, unsigned)
+    );
+    return {
+      value: bytes === 8 ? wire : Number(wire),
+      length: bytes,
+      writer(v) {
+        this.writeUIntLE(v, bytes);
+      },
+    };
+  };
+}
+
+function toDate(value, name) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new TypeError(
+      `${name} parameter must be a valid Date, got ${String(value)}`
+    );
+  }
+  return date;
+}
+
+function temporalEncoder(type, timezone) {
+  const name = Types[type];
+  return (value) => ({
+    value: toDate(value, name),
+    length: 12,
+    writer(v) {
+      this.writeDate(v, timezone);
+    },
+  });
+}
+
+function toTimeParts(value) {
+  if (typeof value === 'number') {
+    const negative = value < 0;
+    let rest = Math.abs(value);
+    const microseconds = Math.round((rest % 1000) * 1000);
+    rest = Math.floor(rest / 1000);
+    const seconds = rest % 60;
+    const minutes = Math.floor(rest / 60) % 60;
+    const totalHours = Math.floor(rest / 3600);
+    return {
+      negative,
+      days: Math.floor(totalHours / 24),
+      hours: totalHours % 24,
+      minutes,
+      seconds,
+      microseconds,
+    };
+  }
+  const match = TIME_PATTERN.exec(String(value));
+  if (!match) {
+    throw new TypeError(
+      `TIME parameter must be 'HH:MM:SS[.ffffff]' or milliseconds, got ${JSON.stringify(String(value))}`
+    );
+  }
+  const hours = Number(match[2]);
+  return {
+    negative: Boolean(match[1]),
+    days: Math.floor(hours / 24),
+    hours: hours % 24,
+    minutes: Number(match[3]),
+    seconds: Number(match[4]),
+    microseconds: match[5] ? Number(match[5].padEnd(6, '0')) : 0,
+  };
+}
+
+function timeEncoder() {
+  return (value) => {
+    const parts = toTimeParts(value);
+    return {
+      value: parts,
+      length: Packet.timeLength(parts),
+      writer(v) {
+        this.writeTime(v);
+      },
+    };
+  };
+}
+
+function lengthCodedEncoder(encoding) {
+  return (value) => {
+    if (!Buffer.isBuffer(value)) {
+      const string = typeof value === 'string' ? value : String(value);
+      if (
+        StringParser.hasFastUtf8Write &&
+        (encoding === 'utf8' || encoding === 'utf-8')
+      ) {
+        const byteLength = Buffer.byteLength(string, 'utf8');
+        return {
+          value: string,
+          length: Packet.lengthCodedNumberLength(byteLength) + byteLength,
+          byteLength,
+          writer: Packet.prototype.writeLengthCodedUtf8String,
+        };
+      }
+      value = StringParser.encode(string, encoding);
+    }
+    return {
+      value,
+      length: Packet.lengthCodedNumberLength(value.length) + value.length,
+      writer: Packet.prototype.writeLengthCodedBuffer,
+    };
+  };
+}
+
+function jsonEncoder(encoding) {
+  const encodeText = lengthCodedEncoder(encoding);
+  return (value) =>
+    encodeText(
+      typeof value === 'string' || Buffer.isBuffer(value)
+        ? value
+        : JSON.stringify(value)
+    );
+}
+
+function encoderFor(type, encoding, timezone) {
+  if (INTEGER_BYTES[type]) {
+    return integerEncoder(type, INTEGER_BYTES[type]);
+  }
+  if (type === Types.DOUBLE) {
+    return (value) => ({
+      value: Number(value),
+      length: 8,
+      writer: Packet.prototype.writeDouble,
+    });
+  }
+  if (type === Types.FLOAT) {
+    return (value) => ({
+      value: Number(value),
+      length: 4,
+      writer: Packet.prototype.writeFloat,
+    });
+  }
+  if (TEMPORAL.includes(type)) {
+    return temporalEncoder(type, timezone);
+  }
+  if (type === Types.TIME) {
+    return timeEncoder();
+  }
+  if (type === Types.JSON) {
+    return jsonEncoder(encoding);
+  }
+  if (LENGTH_CODED.includes(type)) {
+    return lengthCodedEncoder(encoding);
+  }
+  throw new TypeError(
+    `No parameter encoder for MySQL type 0x${type.toString(16)}`
+  );
+}
+
+function encodeTypedParameter(parameter, encoding, timezone, jsonAsString) {
+  if (parameter.value === null || parameter.type === Types.NULL) {
+    return {
+      value: '',
+      type: wireType(parameter.type, jsonAsString),
+      length: 0,
+      writer: writeNothing,
+      unsigned: parameter.unsigned,
+      isNull: true,
+    };
+  }
+  const encoded = encoderFor(
+    parameter.type,
+    encoding,
+    timezone
+  )(parameter.value, parameter.unsigned);
+  return {
+    ...encoded,
+    type: wireType(parameter.type, jsonAsString),
+    unsigned: parameter.unsigned,
+  };
+}
+
+const ALIASES = {
+  MEDIUMTEXT: 'MEDIUM_BLOB',
+  LONGTEXT: 'LONG_BLOB',
+  TINYINT: 'TINY',
+  SMALLINT: 'SHORT',
+  MEDIUMINT: 'INT24',
+  INT: 'LONG',
+  INTEGER: 'LONG',
+  BIGINT: 'LONGLONG',
+  REAL: 'DOUBLE',
+  CHAR: 'STRING',
+  VARBINARY: 'VAR_STRING',
+  BINARY: 'STRING',
+  TEXT: 'BLOB',
+};
+
+const SUPPORTED = [
+  ...Object.keys(INTEGER_BYTES),
+  Types.FLOAT,
+  Types.DOUBLE,
+  Types.TIME,
+  ...TEMPORAL,
+  ...LENGTH_CODED,
+].map(Number);
+
+const types = Object.create(null);
+
+for (const type of SUPPORTED) {
+  const name = Types[type];
+  const bytes = INTEGER_BYTES[type];
+  const build = bytes
+    ? (value, unsigned) =>
+        new TypedParameter(
+          type,
+          value === null ? null : checkedInteger(value, type, bytes, unsigned),
+          unsigned
+        )
+    : (value, unsigned) => new TypedParameter(type, value, unsigned);
+  const factory = (value) => build(value, false);
+  if (bytes) {
+    factory.unsigned = (value) => build(value, true);
+  }
+  types[name] = factory;
+}
+
+types.NULL = () => new TypedParameter(Types.NULL, null, false);
+
+for (const [alias, target] of Object.entries(ALIASES)) {
+  if (types[target] && !types[alias]) {
+    types[alias] = types[target];
+  }
+}
+
+module.exports = {
+  TypedParameter,
+  encodeTypedParameter,
+  integerHint,
+  types,
+};
 
 
 /***/ },
@@ -23405,11 +23635,11 @@ function compile(fields, options, config) {
     if (options.typeCast === false) {
       parserFn(`${lvalue} = packet.readLengthCodedBuffer();`);
     } else {
-      const fieldWrapperVar = `fieldWrapper${i}`;
-      parserFn(`const ${fieldWrapperVar} = wrap(fields[${i}], packet);`);
       const readCode = readCodeFor(fields[i], config, options, i);
 
       if (typeof options.typeCast === 'function') {
+        const fieldWrapperVar = `fieldWrapper${i}`;
+        parserFn(`const ${fieldWrapperVar} = wrap(fields[${i}], packet);`);
         parserFn(
           `${lvalue} = options.typeCast(${fieldWrapperVar}, function() { return ${readCode} });`
         );
@@ -23462,8 +23692,19 @@ const parserCache = createLRU({
   max: 15000,
 });
 
+// the fixed-size options head keeps JSON.stringify (cheap for a flat array,
+// and it normalizes exotic values the same way as before); the per-field part
+// is built by hand with length-prefixed strings, so no delimiter collision is
+// possible and no throwaway nested arrays are allocated per query
+function appendString(key, value) {
+  if (value === undefined || value === null) {
+    return `${key}u/`;
+  }
+  return `${key}${value.length}#${value}/`;
+}
+
 function keyFromFields(type, fields, options, config) {
-  const res = [
+  let key = JSON.stringify([
     type,
     typeof options.nestTables,
     options.nestTables,
@@ -23477,25 +23718,20 @@ function keyFromFields(type, fields, options, config) {
     Boolean(options.decimalNumbers),
     options.dateStrings,
     Boolean(config.jsonStrings),
-  ];
+  ]);
 
   for (let i = 0; i < fields.length; ++i) {
     const field = fields[i];
-
-    res.push([
-      field.name,
-      field.columnType,
-      field.length,
-      field.schema,
-      field.table,
-      field.flags,
-      field.characterSet,
-      field.extendedTypeName,
-      field.extendedFormat,
-    ]);
+    key = appendString(key, field.name);
+    key += `${field.columnType}/${field.length}/`;
+    key = appendString(key, field.schema);
+    key = appendString(key, field.table);
+    key += `${field.flags}/${field.characterSet}/`;
+    key = appendString(key, field.extendedTypeName);
+    key = appendString(key, field.extendedFormat);
   }
 
-  return JSON.stringify(res, null, 0);
+  return key;
 }
 
 function getParser(type, fields, options, config, compiler) {
@@ -23983,7 +24219,52 @@ const decoderCache = createLRU({
   max: 500,
 });
 
+// Direct slice methods skip the per-call encoding normalization and dispatch
+// inside buffer.toString(); they have been stable Node internals for years
+// but fall back gracefully where missing (other runtimes)
+const hasFastSlices =
+  typeof Buffer.prototype.utf8Slice === 'function' &&
+  typeof Buffer.prototype.latin1Slice === 'function' &&
+  typeof Buffer.prototype.asciiSlice === 'function';
+
+// utf8Write skips the per-call encoding normalization and dispatch inside
+// buffer.write(); same stability story as the slice methods above
+exports.hasFastUtf8Write = typeof Buffer.prototype.utf8Write === 'function';
+
 exports.decode = function (buffer, encoding, start, end, options) {
+  if (hasFastSlices) {
+    // replicate buffer.toString() bounds coercion exactly (the *Slice
+    // methods throw on anything out of range): negative, NaN, fractional
+    // and oversized offsets all clamp instead of throwing
+    const len = buffer.length;
+    if (start <= 0) {
+      start = 0;
+    } else if (start >= len) {
+      return '';
+    } else {
+      start |= 0;
+    }
+    if (end === undefined || end > len) {
+      end = len;
+    } else {
+      end |= 0;
+    }
+    if (end <= start) {
+      return '';
+    }
+    switch (encoding) {
+      case 'utf8':
+      case 'utf-8':
+        return buffer.utf8Slice(start, end);
+      case 'latin1':
+      case 'binary':
+        return buffer.latin1Slice(start, end);
+      case 'ascii':
+        return buffer.asciiSlice(start, end);
+      default:
+        break;
+    }
+  }
   if (Buffer.isEncoding(encoding)) {
     return buffer.toString(encoding, start, end);
   }
@@ -24427,6 +24708,17 @@ class PoolNamespace {
         throw e;
       }
     });
+  }
+
+  get trace() {
+    const nodeIds = this._cluster._findNodeIds(this._pattern, true);
+    for (let i = 0; i < nodeIds.length; i++) {
+      const node = this._cluster._getNode(nodeIds[i]);
+      if (node?.pool.config.connectionConfig.trace) {
+        return true;
+      }
+    }
+    return nodeIds.length === 0;
   }
 
   _getClusterNode() {
@@ -24873,7 +25165,9 @@ class PromiseConnection extends EventEmitter {
 
   query(query, params) {
     const c = this.connection;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.query);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.query)
+      : undefined;
     if (typeof params === 'function') {
       throw new Error(
         'Callback function is not available with promise clients.'
@@ -24891,7 +25185,9 @@ class PromiseConnection extends EventEmitter {
 
   execute(query, params) {
     const c = this.connection;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.execute);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.execute)
+      : undefined;
     if (typeof params === 'function') {
       throw new Error(
         'Callback function is not available with promise clients.'
@@ -24921,9 +25217,9 @@ class PromiseConnection extends EventEmitter {
 
   beginTransaction() {
     const c = this.connection;
-    const stackHolder = captureStackHolder(
-      PromiseConnection.prototype.beginTransaction
-    );
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.beginTransaction)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       const done = makeDoneCb(resolve, reject, stackHolder);
       c.beginTransaction(done);
@@ -24932,7 +25228,9 @@ class PromiseConnection extends EventEmitter {
 
   commit() {
     const c = this.connection;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.commit);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.commit)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       const done = makeDoneCb(resolve, reject, stackHolder);
       c.commit(done);
@@ -24941,9 +25239,9 @@ class PromiseConnection extends EventEmitter {
 
   rollback() {
     const c = this.connection;
-    const stackHolder = captureStackHolder(
-      PromiseConnection.prototype.rollback
-    );
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.rollback)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       const done = makeDoneCb(resolve, reject, stackHolder);
       c.rollback(done);
@@ -24952,7 +25250,9 @@ class PromiseConnection extends EventEmitter {
 
   ping() {
     const c = this.connection;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.ping);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.ping)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       c.ping((err) => {
         if (err) {
@@ -24967,7 +25267,9 @@ class PromiseConnection extends EventEmitter {
 
   reset() {
     const c = this.connection;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.reset);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.reset)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       c.reset((err) => {
         if (err) {
@@ -24982,7 +25284,9 @@ class PromiseConnection extends EventEmitter {
 
   connect() {
     const c = this.connection;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.connect);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.connect)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       c.connect((err, param) => {
         if (err) {
@@ -24998,7 +25302,9 @@ class PromiseConnection extends EventEmitter {
   prepare(options) {
     const c = this.connection;
     const promiseImpl = this.Promise;
-    const stackHolder = captureStackHolder(PromiseConnection.prototype.prepare);
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.prepare)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       c.prepare(options, (err, statement) => {
         if (err) {
@@ -25017,9 +25323,9 @@ class PromiseConnection extends EventEmitter {
 
   changeUser(options) {
     const c = this.connection;
-    const stackHolder = captureStackHolder(
-      PromiseConnection.prototype.changeUser
-    );
+    const stackHolder = c.config.trace
+      ? captureStackHolder(PromiseConnection.prototype.changeUser)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       c.changeUser(options, (err) => {
         if (err) {
@@ -25190,7 +25496,9 @@ class PromisePool extends EventEmitter {
 
   query(sql, args) {
     const corePool = this.pool;
-    const stackHolder = captureStackHolder(PromisePool.prototype.query);
+    const stackHolder = corePool.config.connectionConfig.trace
+      ? captureStackHolder(PromisePool.prototype.query)
+      : undefined;
     if (typeof args === 'function') {
       throw new Error(
         'Callback function is not available with promise clients.'
@@ -25208,7 +25516,9 @@ class PromisePool extends EventEmitter {
 
   execute(sql, args) {
     const corePool = this.pool;
-    const stackHolder = captureStackHolder(PromisePool.prototype.execute);
+    const stackHolder = corePool.config.connectionConfig.trace
+      ? captureStackHolder(PromisePool.prototype.execute)
+      : undefined;
     if (typeof args === 'function') {
       throw new Error(
         'Callback function is not available with promise clients.'
@@ -25226,7 +25536,9 @@ class PromisePool extends EventEmitter {
 
   end() {
     const corePool = this.pool;
-    const stackHolder = captureStackHolder(PromisePool.prototype.end);
+    const stackHolder = corePool.config.connectionConfig.trace
+      ? captureStackHolder(PromisePool.prototype.end)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       corePool.end((err) => {
         if (err) {
@@ -25306,9 +25618,9 @@ class PromisePoolNamespace {
 
   query(sql, values) {
     const corePoolNamespace = this.poolNamespace;
-    const stackHolder = captureStackHolder(
-      PromisePoolNamespace.prototype.query
-    );
+    const stackHolder = corePoolNamespace.trace
+      ? captureStackHolder(PromisePoolNamespace.prototype.query)
+      : undefined;
     if (typeof values === 'function') {
       throw new Error(
         'Callback function is not available with promise clients.'
@@ -25322,9 +25634,9 @@ class PromisePoolNamespace {
 
   execute(sql, values) {
     const corePoolNamespace = this.poolNamespace;
-    const stackHolder = captureStackHolder(
-      PromisePoolNamespace.prototype.execute
-    );
+    const stackHolder = corePoolNamespace.trace
+      ? captureStackHolder(PromisePoolNamespace.prototype.execute)
+      : undefined;
     if (typeof values === 'function') {
       throw new Error(
         'Callback function is not available with promise clients.'
@@ -25390,9 +25702,9 @@ class PromisePreparedStatementInfo {
 
   execute(parameters) {
     const s = this.statement;
-    const stackHolder = captureStackHolder(
-      PromisePreparedStatementInfo.prototype.execute
-    );
+    const stackHolder = s._connection.config.trace
+      ? captureStackHolder(PromisePreparedStatementInfo.prototype.execute)
+      : undefined;
     return new this.Promise((resolve, reject) => {
       const done = makeDoneCb(resolve, reject, stackHolder);
       if (parameters) {
@@ -25412,6 +25724,369 @@ class PromisePreparedStatementInfo {
 }
 
 module.exports = PromisePreparedStatementInfo;
+
+
+/***/ },
+
+/***/ "./node_modules/mysql2/lib/ring_queue.js"
+/*!***********************************************!*\
+  !*** ./node_modules/mysql2/lib/ring_queue.js ***!
+  \***********************************************/
+(module) {
+
+/**
+ * Simplified abstraction adapted from denque (https://github.com/invertase/denque/tree/539105bb57854e997dd469221cdc52a0ad80e0a2)
+ * License: Apache-2.0 (https://github.com/invertase/denque/blob/master/LICENSE)
+ */
+
+
+
+const MIN_SHRINK_TAIL = 10000;
+
+class RingQueue {
+  constructor() {
+    this._list = new Array(4);
+    this._mask = 3;
+    this._head = 0;
+    this._tail = 0;
+  }
+
+  get length() {
+    return (this._tail - this._head) & this._mask;
+  }
+
+  size() {
+    return this.length;
+  }
+
+  isEmpty() {
+    return this._head === this._tail;
+  }
+
+  push(item) {
+    // biome-ignore lint/correctness/noUndeclaredVariables: arguments distinguishes push() from push(undefined)
+    if (arguments.length === 0) {
+      return this.length;
+    }
+
+    this._list[this._tail] = item;
+    this._tail = (this._tail + 1) & this._mask;
+
+    if (this._tail === this._head) {
+      this._grow();
+    }
+
+    return this.length;
+  }
+
+  unshift(item) {
+    // biome-ignore lint/correctness/noUndeclaredVariables: arguments distinguishes unshift() from unshift(undefined)
+    if (arguments.length === 0) {
+      return this.length;
+    }
+
+    this._head = (this._head - 1) & this._mask;
+    this._list[this._head] = item;
+
+    if (this._tail === this._head) {
+      this._grow();
+    }
+
+    return this.length;
+  }
+
+  shift() {
+    const head = this._head;
+
+    if (head === this._tail) {
+      return undefined;
+    }
+
+    const item = this._list[head];
+    this._list[head] = undefined;
+    this._head = (head + 1) & this._mask;
+
+    if (
+      head < 2 &&
+      this._tail > MIN_SHRINK_TAIL &&
+      this._tail <= this._list.length >>> 2
+    ) {
+      this._shrink();
+    }
+
+    return item;
+  }
+
+  pop() {
+    const tail = this._tail;
+
+    if (tail === this._head) {
+      return undefined;
+    }
+
+    const capacity = this._list.length;
+    this._tail = (tail - 1) & this._mask;
+
+    const item = this._list[this._tail];
+    this._list[this._tail] = undefined;
+
+    if (this._head < 2 && tail > MIN_SHRINK_TAIL && tail <= capacity >>> 2) {
+      this._shrink();
+    }
+
+    return item;
+  }
+
+  peekAt(index) {
+    if (index !== (index | 0)) {
+      return undefined;
+    }
+
+    if (index >= 0) {
+      if (index >= this.length) {
+        return undefined;
+      }
+
+      return this._list[(this._head + index) & this._mask];
+    }
+
+    const size = this.length;
+
+    if (index < -size) {
+      return undefined;
+    }
+
+    return this._list[(this._head + index + size) & this._mask];
+  }
+
+  get(index) {
+    return this.peekAt(index);
+  }
+
+  peek() {
+    if (this._head === this._tail) {
+      return undefined;
+    }
+
+    return this._list[this._head];
+  }
+
+  peekFront() {
+    return this.peek();
+  }
+
+  peekBack() {
+    return this.peekAt(-1);
+  }
+
+  removeOne(index) {
+    if (index !== (index | 0)) {
+      return undefined;
+    }
+
+    const size = this.length;
+
+    if (index >= size || index < -size) {
+      return undefined;
+    }
+
+    if (index < 0) {
+      index += size;
+    }
+
+    const mask = this._mask;
+    let slot = (this._head + index) & mask;
+    const item = this._list[slot];
+    const isCloserToHead = index < size / 2;
+
+    if (isCloserToHead) {
+      for (let moves = index; moves > 0; moves--) {
+        const previous = (slot - 1) & mask;
+        this._list[slot] = this._list[previous];
+        slot = previous;
+      }
+
+      this._list[slot] = undefined;
+      this._head = (this._head + 1) & mask;
+    } else {
+      for (let moves = size - 1 - index; moves > 0; moves--) {
+        const next = (slot + 1) & mask;
+        this._list[slot] = this._list[next];
+        slot = next;
+      }
+
+      this._list[slot] = undefined;
+      this._tail = (this._tail - 1) & mask;
+    }
+
+    return item;
+  }
+
+  remove(index, count) {
+    if (index !== (index | 0)) {
+      return undefined;
+    }
+
+    if (this._head === this._tail) {
+      return undefined;
+    }
+
+    const size = this.length;
+
+    if (index >= size || index < -size || count < 1) {
+      return undefined;
+    }
+
+    if (index < 0) {
+      index += size;
+    }
+
+    if (count === 1 || !count) {
+      return [this.removeOne(index)];
+    }
+
+    if (count !== (count | 0)) {
+      return undefined;
+    }
+
+    if (index + count > size) {
+      count = size - index;
+    }
+
+    const items = this.toArray();
+    const removed = items.splice(index, count);
+    this._rebuild(items);
+
+    return removed;
+  }
+
+  splice(index, count, ...newItems) {
+    if (index !== (index | 0)) {
+      return undefined;
+    }
+
+    const size = this.length;
+
+    if (index < 0) {
+      index += size;
+    }
+
+    if (index > size) {
+      return undefined;
+    }
+
+    if (newItems.length === 0) {
+      return this.remove(index, count);
+    }
+
+    if (index < 0) {
+      return undefined;
+    }
+
+    const removalCount = count === undefined ? 1 : count;
+
+    if (removalCount !== (removalCount | 0) || removalCount < 0) {
+      return undefined;
+    }
+
+    const items = this.toArray();
+    let removed;
+
+    if (removalCount === 0) {
+      removed = [];
+      items.splice(index, 0, ...newItems);
+    } else if (index >= size) {
+      removed = undefined;
+      items.splice(index, 0, ...newItems);
+    } else {
+      removed = items.splice(index, removalCount, ...newItems);
+    }
+
+    this._rebuild(items);
+
+    return removed;
+  }
+
+  clear() {
+    this._list = new Array(this._list.length);
+    this._head = 0;
+    this._tail = 0;
+  }
+
+  toArray() {
+    const head = this._head;
+    const tail = this._tail;
+
+    if (head <= tail) {
+      return this._list.slice(head, tail);
+    }
+
+    const capacity = this._list.length;
+    const items = new Array(this.length);
+    let count = 0;
+
+    for (let slot = head; slot < capacity; slot++) {
+      items[count++] = this._list[slot];
+    }
+
+    for (let slot = 0; slot < tail; slot++) {
+      items[count++] = this._list[slot];
+    }
+
+    return items;
+  }
+
+  _grow() {
+    const list = this._list;
+    const capacity = list.length;
+
+    if (this._head === 0) {
+      this._tail = capacity;
+      list.length = capacity << 1;
+    } else {
+      const grown = new Array(capacity << 1);
+      let count = 0;
+
+      for (let slot = this._head; slot < capacity; slot++) {
+        grown[count++] = list[slot];
+      }
+
+      for (let slot = 0; slot < this._tail; slot++) {
+        grown[count++] = list[slot];
+      }
+
+      this._list = grown;
+      this._head = 0;
+      this._tail = capacity;
+    }
+
+    this._mask = (this._mask << 1) | 1;
+  }
+
+  _shrink() {
+    this._list.length >>>= 1;
+    this._mask >>>= 1;
+  }
+
+  _rebuild(items) {
+    let capacity = this._list.length;
+
+    while (items.length >= capacity) {
+      capacity <<= 1;
+    }
+
+    this._list = new Array(capacity);
+    this._mask = capacity - 1;
+    this._head = 0;
+    this._tail = items.length;
+
+    for (let i = 0; i < items.length; i++) {
+      this._list[i] = items[i];
+    }
+  }
+}
+
+module.exports = RingQueue;
 
 
 /***/ },
@@ -25753,6 +26428,11 @@ exports.PromiseConnection = PromiseConnection;
 exports.PromisePoolConnection = PromisePoolConnection;
 
 exports.__defineGetter__('Types', () => __webpack_require__(/*! ./lib/constants/types.js */ "./node_modules/mysql2/lib/constants/types.js"));
+
+exports.__defineGetter__(
+  'TypedParameter',
+  () => (__webpack_require__(/*! ./lib/packets/typed_parameter.js */ "./node_modules/mysql2/lib/packets/typed_parameter.js").types)
+);
 
 exports.__defineGetter__('Charsets', () =>
   __webpack_require__(/*! ./lib/constants/charsets.js */ "./node_modules/mysql2/lib/constants/charsets.js")
@@ -45911,7 +46591,7 @@ class CreateTypeBuilder {
         return this.#props.executor.transformQuery(this.#props.node, this.#props.queryId);
     }
     /**
-     * Creates an anum type.
+     * Creates an enum type.
      *
      * ### Examples
      *
@@ -47098,6 +47778,7 @@ function getInflightQueryAbortHandler(abortStrategy = 'ignore query', connection
     if (abortStrategy === 'cancel query') {
         const handler = connection.cancelQuery;
         if (!handler) {
+            beforeThrow();
             throwUnsupportedInflightQueryAbortStrategyError(abortStrategy, connection.killSession ? 'kill session' : undefined);
         }
         return handler.bind(connection);
@@ -47105,6 +47786,7 @@ function getInflightQueryAbortHandler(abortStrategy = 'ignore query', connection
     if (abortStrategy === 'kill session') {
         const handler = connection.killSession;
         if (!handler) {
+            beforeThrow();
             throwUnsupportedInflightQueryAbortStrategyError(abortStrategy, connection.cancelQuery ? 'cancel query' : undefined);
         }
         return handler.bind(connection);
@@ -47798,7 +48480,7 @@ module.exports = /*#__PURE__*/JSON.parse('[["0","\\u0000",128],["a1","｡",62],[
   \******************************************/
 (module) {
 
-module.exports = /*#__PURE__*/JSON.parse('{"name":"mysql2","version":"3.23.2","description":"fast mysql driver. Implements core protocol, prepared statements, ssl and compression in native JS","main":"index.js","typings":"typings/mysql/index","type":"commonjs","scripts":{"lint":"eslint . && prettier --check .","lint:fix":"eslint . --fix && prettier --write .","test":"poku","test:bun":"bun poku","test:deno":"deno run -A npm:poku","test:docker:up":"docker compose -f test/docker-compose.yml up --abort-on-container-exit --remove-orphans","test:docker:down":"docker compose -f test/docker-compose.yml down","test:docker:node":"npm run test:docker:up -- node && npm run test:docker:down","test:docker:bun":"npm run test:docker:up -- bun && npm run test:docker:down","test:docker:deno":"npm run test:docker:up -- deno && npm run test:docker:down","test:docker:coverage":"npm run test:docker:up -- coverage && npm run test:docker:down","test:coverage":"c8 npm test","test:build":"rollup -c","typecheck":"cd \\"test/tsc-build\\" && tsc -p \\"tsconfig.json\\" && cd .. && tsc -p \\"tsconfig.json\\" --noEmit","benchmark":"node ./benchmarks/benchmark.js","wait-port":"wait-on"},"repository":{"type":"git","url":"git+https://github.com/sidorares/node-mysql2.git"},"homepage":"https://sidorares.github.io/node-mysql2/docs","keywords":["mysql","client","server"],"files":["lib","typings/mysql","index.js","index.d.ts","promise.js","promise.d.ts"],"exports":{".":"./index.js","./package.json":"./package.json","./promise":"./promise.js","./promise.js":"./promise.js"},"engines":{"node":">= 8.0"},"author":"Andrey Sidorov <andrey.sidorov@gmail.com>","license":"MIT","dependencies":{"aws-ssl-profiles":"^1.1.2","denque":"^2.1.0","generate-function":"^2.3.1","iconv-lite":"^0.7.2","long":"^5.3.2","lru.min":"^1.1.4","named-placeholders":"^1.1.6","sql-escaper":"^1.5.1"},"peerDependencies":{"@types/node":">= 8"},"devDependencies":{"@eslint/eslintrc":"^3.3.3","@eslint/js":"^9.39.2","@eslint/markdown":"^8.0.1","@ianvs/prettier-plugin-sort-imports":"^4.7.1","@pokujs/multi-suite":"^1.0.0","@rollup/plugin-commonjs":"^29.0.2","@rollup/plugin-json":"^6.1.0","@rollup/plugin-node-resolve":"^16.0.3","@types/node":"^26.0.0","@typescript-eslint/eslint-plugin":"^8.56.0","@typescript-eslint/parser":"^8.56.0","assert-diff":"^3.0.4","benchmark":"^2.1.4","c8":"^11.0.0","error-stack-parser":"^2.1.4","eslint-config-prettier":"^10.1.8","eslint-plugin-async-await":"^0.0.0","eslint-plugin-prettier":"^5.5.5","globals":"^17.3.0","poku":"^4.1.0","portfinder":"^1.0.38","prettier":"^3.8.1","rollup":"^4.59.0","tsx":"^4.21.0","typescript":"^5.9.3"}}');
+module.exports = /*#__PURE__*/JSON.parse('{"name":"mysql2","version":"3.24.3","description":"fast mysql driver. Implements core protocol, prepared statements, ssl and compression in native JS","main":"index.js","typings":"typings/mysql/index","type":"commonjs","scripts":{"lint":"biome lint --error-on-warnings && prettier --check .","lint:fix":"biome lint --write . && prettier --write .","test":"poku","test:bun":"bun poku","test:deno":"deno run -A npm:poku","test:docker:up":"docker compose -f test/docker-compose.yml up --abort-on-container-exit --remove-orphans","test:docker:down":"docker compose -f test/docker-compose.yml down","test:docker:node":"npm run test:docker:up -- node && npm run test:docker:down","test:docker:bun":"npm run test:docker:up -- bun && npm run test:docker:down","test:docker:deno":"npm run test:docker:up -- deno && npm run test:docker:down","test:docker:coverage":"npm run test:docker:up -- coverage && npm run test:docker:down","test:coverage":"c8 npm test","test:build":"rollup -c","typecheck":"cd \\"test/tsc-build\\" && tsc -p \\"tsconfig.json\\" && cd .. && tsc -p \\"tsconfig.json\\" --noEmit","benchmark":"node ./benchmarks/benchmark.js","wait-port":"wait-on"},"repository":{"type":"git","url":"git+https://github.com/sidorares/node-mysql2.git"},"homepage":"https://sidorares.github.io/node-mysql2/docs","keywords":["mysql","client","server"],"files":["lib","typings/mysql","index.js","index.d.ts","promise.js","promise.d.ts"],"exports":{".":"./index.js","./package.json":"./package.json","./promise":"./promise.js","./promise.js":"./promise.js"},"engines":{"node":">= 8.0"},"author":"Andrey Sidorov <andrey.sidorov@gmail.com>","license":"MIT","dependencies":{"aws-ssl-profiles":"^1.1.2","generate-function":"^2.3.1","iconv-lite":"^0.7.3","long":"^5.3.2","lru.min":"^1.1.4","named-placeholders":"^1.1.6","sql-escaper":"^1.5.1"},"peerDependencies":{"@types/node":">= 8"},"devDependencies":{"@biomejs/biome":"^2.5.7","@ianvs/prettier-plugin-sort-imports":"^4.7.1","@pokujs/multi-suite":"^1.0.2","@rollup/plugin-commonjs":"^29.0.3","@rollup/plugin-json":"^6.1.0","@rollup/plugin-node-resolve":"^16.0.3","@types/node":"^26.2.0","assert-diff":"^3.0.4","benchmark":"^2.1.4","c8":"^12.0.0","error-stack-parser":"^2.1.4","poku":"^4.5.0","portfinder":"^1.0.38","prettier":"^3.9.6","rollup":"^4.62.4","tsx":"^4.23.11","typescript":"^7.0.2"}}');
 
 /***/ },
 
@@ -47903,9 +48585,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _AccountManager__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./AccountManager */ "./server/AccountManager.ts");
 /* harmony import */ var _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./DataBase classes/AccountDBService */ "./server/DataBase classes/AccountDBService.ts");
 /* harmony import */ var _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./DataBase classes/VehicletDBService */ "./server/DataBase classes/VehicletDBService.ts");
-/* harmony import */ var _ConfigManager__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./ConfigManager */ "./server/ConfigManager.ts");
-/* harmony import */ var _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! ./config/VehConfig.json */ "./server/config/VehConfig.json");
-
+/* harmony import */ var _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./config/VehConfig.json */ "./server/config/VehConfig.json");
 
 
 
@@ -47921,15 +48601,15 @@ class StartServer {
     accoutManager;
     commandManager;
     carShopServer;
-    configManager;
+    //private readonly configManager: ConfigManager;
     constructor() {
         //this.databaseService = new DatabaseService(db);
         this.accountDBService = new _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__.AccountDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
         this.vehicleDBService = new _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__.VehicleDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
         this.accoutManager = new _AccountManager__WEBPACK_IMPORTED_MODULE_4__.AccountManager(this.accountDBService);
-        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__, this.vehicleDBService, this.accoutManager);
+        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__, this.vehicleDBService, this.accoutManager);
         this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_2__.CommandManager(this.accoutManager, this.carShopServer);
-        this.configManager = new _ConfigManager__WEBPACK_IMPORTED_MODULE_7__.ConfigManager(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__);
+        //this.configManager = new ConfigManager(vehiclesForSale);
         this.#init();
     }
     #init() {
@@ -48015,7 +48695,7 @@ class StartServer {
             //new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
             //player.spawn(-1269.91, -1438.64, 4.46);
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
-            alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'carShop:createClientDemonstrationScene', _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_8__);
+            alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'carShop:createClientDemonstrationScene', _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__);
             //this.carShopServer.sendPlayerCarsForSale(player);
         });
     }

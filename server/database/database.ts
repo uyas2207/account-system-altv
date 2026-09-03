@@ -25,16 +25,18 @@ CREATE TABLE account (
         mainColour:  ColumnType<IColorRGBA>;
         secondaryColour: ColumnType<IColorRGBA>;
         registrationNumber: string | null;
+        price: number | null;
     };
 }
 /* 
 CREATE TABLE vehicles (
     vehId INT AUTO_INCREMENT PRIMARY KEY,
     ownerId INT NOT NULL,
-    model VARCHAR(50) NOT NULL,
+    model INT NOT NULL,
     mainColour VARCHAR(50) NOT NULL,
     secondaryColour VARCHAR(50) NOT NULL,
     registrationNumber VARCHAR(50) UNIQUE,
+    price INT,
     CONSTRAINT vehicle_owner FOREIGN KEY (ownerId) REFERENCES account(accountId) ON DELETE CASCADE
 ); 
 */

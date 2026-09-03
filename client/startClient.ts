@@ -70,9 +70,8 @@ class CarShopClient {
         alt.on('startEnteringVehicle', (vehicle, seat, player) => {
             console.log("vehicle.id", vehicle.id)
             const model = native.getDisplayNameFromVehicleModel(vehicle.model);
-            console.log('model', model);
             if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
-                drawNotification(`/buy что бы купить машину ${vehicle.model}`);      //вынести текст в конфиг
+                drawNotification(`/buy что бы купить машину ${model?.toLowerCase}`);      //вынести текст в конфиг
             }
         });
 

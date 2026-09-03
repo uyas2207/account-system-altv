@@ -16,13 +16,14 @@ export class CarShopServer{
     ){
         this.activeVehiclesForSale = new Set();
 
-        this.#registerEventListeners();
+        this._registerEventListeners();
     }
 
-    #registerEventListeners(){
+    private _registerEventListeners(){
 
         alt.onClient('carShop:onVehiclePurchase', (player, vehicle) => {
             if (this.activeVehiclesForSale.has(vehicle)){
+                alt.getVehicleModelInfoByHash
             }
         });
     }
@@ -55,7 +56,7 @@ export class CarShopServer{
         }
         if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
             try {
-                const currentPlayerDBData = await this.accoutManager.requestPlayerForCarPurchase(player);
+                const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
                 const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId') as number;
                 const vehConfigInfo = this.config.vehiclesForSale.at(CarForSaleId);
                 //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
@@ -69,7 +70,8 @@ export class CarShopServer{
                         ownerId: currentPlayerDBData.accountId,
                         model: vehicle.model,
                         mainColour: vehicle.customPrimaryColor,
-                        secondaryColour: vehicle.customSecondaryColor
+                        secondaryColour: vehicle.customSecondaryColor,
+                        price: price
                     });
                     chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
                     vehicle.deleteStreamSyncedMeta('CarForSaleId');
@@ -91,6 +93,11 @@ export class CarShopServer{
             chat.send(player, 'Произошла ошибка, нет цены у авто');
             return;
         }
+    }
+
+    onMyVehsCommand(player:  alt.Player){
+
+
     }
 
     sendPlayerCarsForSale(player: alt.Player){

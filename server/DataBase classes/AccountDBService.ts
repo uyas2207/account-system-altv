@@ -10,4 +10,8 @@ export class AccountDBService extends BaseDBService <'account','accountId'>{
             'accountId'
         );
     }
+    
+    async checkAccountLogin(playerLogin: Database['account']['login']){
+        return await this.db.selectFrom('account').where('login', '=', playerLogin).selectAll().executeTakeFirst();
+    }
 }

@@ -37,7 +37,7 @@ export abstract class BaseDBService<T extends keyof Database, K extends keyof Se
         //поэтому перед отправкой надо сделать JSON.stringify, а для того что бы на такое не ругался ts нужно сделать values as any
         //по идее values as any ничем не мешает так как проверка на правильный тип значений уже была выполнена в values: Insertable<Database[T]>
 
-        const preparedValues = values as any;
+/*         const preparedValues = values as any;
 
         for (const key in preparedValues) {
             const currentValue = preparedValues[key];
@@ -45,10 +45,10 @@ export abstract class BaseDBService<T extends keyof Database, K extends keyof Se
                 preparedValues[key] = JSON.stringify(currentValue);
             }
         }
-
+ */
         await this.db
             .insertInto(this.tableName)
-            .values(preparedValues)
+            .values(values)
             .execute();
     }
 

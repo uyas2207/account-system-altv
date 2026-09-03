@@ -30,19 +30,16 @@ class CarShopVisuals {
     }
     testDell(index) {
         if (this.priceTextLabels.has(index) !== null && this.priceTextLabels.get(index) !== undefined) {
-            console.log('До удаления');
-            this.print();
             const label = this.priceTextLabels.get(index);
             // !. так как проверка на undefined уже была 
             label.destroy();
             this.priceTextLabels.delete(index);
-            console.log('После удаления');
-            this.print();
         }
         else {
             alt_client__WEBPACK_IMPORTED_MODULE_0__.logError(`Под значением ${index} нет label`);
         }
     }
+    //дебаг команда потом удалить
     print() {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.log('Весь priceTextLabels');
         this.priceTextLabels.forEach((value, key) => {
@@ -246,9 +243,8 @@ class CarShopClient {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('startEnteringVehicle', (vehicle, seat, player) => {
             console.log("vehicle.id", vehicle.id);
             const model = natives__WEBPACK_IMPORTED_MODULE_1__["default"].getDisplayNameFromVehicleModel(vehicle.model);
-            console.log('model', model);
             if (vehicle.hasStreamSyncedMeta('CarForSaleId')) {
-                (0,_utilities__WEBPACK_IMPORTED_MODULE_2__.drawNotification)(`/buy что бы купить машину ${vehicle.model}`); //вынести текст в конфиг
+                (0,_utilities__WEBPACK_IMPORTED_MODULE_2__.drawNotification)(`/buy что бы купить машину ${model?.toLowerCase}`); //вынести текст в конфиг
             }
         });
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('streamSyncedMetaChange', (entity, metaKey, value, oldValue) => {

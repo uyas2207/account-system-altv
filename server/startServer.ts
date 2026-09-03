@@ -15,6 +15,7 @@ import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
 
 
 class StartServer {
+    
     //private readonly databaseService: DatabaseService;
     private readonly accountDBService: AccountDBService;
     private readonly vehicleDBService: VehicleDBService;
@@ -51,6 +52,7 @@ class StartServer {
                     login: 'playerLogin2',
                     password: 'playerPassword',
                     money: 10000 
+                    
                 });
             }
             if(command === 'testveh'){
