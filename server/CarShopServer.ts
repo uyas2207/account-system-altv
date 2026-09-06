@@ -5,12 +5,17 @@ import { IVehiclesConfig } from '@shared/types/IVehiclesConfig'
 import { VehicleDBService } from './DataBase classes/VehicletDBService'
 import { AccountManager } from './AccountManager'
 
+import { defaultParameters, vehicleSpawnCoords } from './config/VehConfig'
+import { vehiclesForSaleList } from '@shared/SharedConfig'
+import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig2'
+
 export class CarShopServer{
     //в теории можно убрать и полностью перейти на Meta и после проверки машины на наличие нужной меты проболжать покупку, но мне кажется с set тоже нормально (надесь это не плодит лишние сущности)
     private readonly activeVehiclesForSale: Set<alt.Vehicle>;
 
     constructor(
-        private readonly config: IVehiclesConfig, 
+        /* private readonly config: IVehiclesConfig,  */
+        private readonly config2: Array<IVehiclesForSaleList>,
         private readonly vehicleDBService: VehicleDBService,
         private readonly accoutManager: AccountManager
     ){
@@ -23,13 +28,33 @@ export class CarShopServer{
 
         alt.onClient('carShop:onVehiclePurchase', (player, vehicle) => {
             if (this.activeVehiclesForSale.has(vehicle)){
+                //this.activeVehiclesForSale.
                 alt.getVehicleModelInfoByHash
             }
         });
     }
     //vehicleDataValidation(ownerId: number, model: string, mainColour:string, secondaryColour:string, registrationNumber: string){}
-    async createDemonstrationScene(){
-        this.config.vehiclesForSale.forEach((e, index) => {
+    async createVehiclesForSale(){
+
+        for (let index = 0; index < Math.min(defaultParameters.numberOfCarsForSale, vehicleSpawnCoords.length); index++) {
+            const model = this.config2[index]?.model;
+            const coords = vehicleSpawnCoords[index];
+            const position = vehicleSpawnCoords[index]?.position;
+            const rotation = vehicleSpawnCoords[index]?.rotation;
+//            const position = coords?.position  ?? new alt.Vector3(0,0,0);
+
+            if(!model || !position || !rotation){
+                throw new Error();
+            }
+
+            const veh = new alt.Vehicle(model, position, rotation);
+            veh.customPrimaryColor = this.config2[index]?.customPrimaryColor ?? new alt.RGBA(0,0,0);
+            veh.customSecondaryColor = this.config2[index]?.customSecondaryColor ?? new alt.RGBA(0,0,0);
+            veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
+        }
+
+
+/*         this.config.vehiclesForSale.forEach((e, index) => {
             const veh = new alt.Vehicle(e.model, e.x, e.y, e.z, e.rx, e.ry, e.rz);
             const primary = e.colorData.customPrimaryColor;
             const secondary = e.colorData.customSecondaryColor;
@@ -41,10 +66,10 @@ export class CarShopServer{
             //это порядковый номер авто из конфига а конфиг одинаковый для клиента и сервера и перебирается в одном и том же порядке на сервере и клиенте)
             veh.setStreamSyncedMeta('CarForSaleId', index);
             this.activeVehiclesForSale.add(veh);
-        });
+        }); */
     }
 
-    async onCarPurchaseAttempt(player: alt.Player){
+/*     async onCarPurchaseAttempt(player: alt.Player){
         const vehicle = player.vehicle;
         if(vehicle === null){
             chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
@@ -94,7 +119,7 @@ export class CarShopServer{
             return;
         }
     }
-
+ */
     onMyVehsCommand(player:  alt.Player){
 
 

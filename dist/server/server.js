@@ -1,4 +1,5 @@
 import * as __WEBPACK_EXTERNAL_MODULE_alt_server_bcde031e__ from "alt-server";
+import * as __WEBPACK_EXTERNAL_MODULE_alt_shared_5f1c9f48__ from "alt-shared";
 import * as __WEBPACK_EXTERNAL_MODULE_alt_chat_aea54472__ from "alt:chat";
 import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "node:module";
 const __WEBPACK_EXTERNAL_createRequire_require = __WEBPACK_EXTERNAL_createRequire(import.meta.url);
@@ -7415,16 +7416,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   CarShopServer: () => (/* binding */ CarShopServer)
 /* harmony export */ });
 /* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
+/* harmony import */ var _config_VehConfig__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./config/VehConfig */ "./server/config/VehConfig.ts");
 
 const chat = __webpack_require__(/*! alt:chat */ "alt:chat"); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
+
 class CarShopServer {
-    config;
+    config2;
     vehicleDBService;
     accoutManager;
     //в теории можно убрать и полностью перейти на Meta и после проверки машины на наличие нужной меты проболжать покупку, но мне кажется с set тоже нормально (надесь это не плодит лишние сущности)
     activeVehiclesForSale;
-    constructor(config, vehicleDBService, accoutManager) {
-        this.config = config;
+    constructor(
+    /* private readonly config: IVehiclesConfig,  */
+    config2, vehicleDBService, accoutManager) {
+        this.config2 = config2;
         this.vehicleDBService = vehicleDBService;
         this.accoutManager = accoutManager;
         this.activeVehiclesForSale = new Set();
@@ -7433,73 +7438,92 @@ class CarShopServer {
     _registerEventListeners() {
         alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].onClient('carShop:onVehiclePurchase', (player, vehicle) => {
             if (this.activeVehiclesForSale.has(vehicle)) {
+                //this.activeVehiclesForSale.
                 alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].getVehicleModelInfoByHash;
             }
         });
     }
     //vehicleDataValidation(ownerId: number, model: string, mainColour:string, secondaryColour:string, registrationNumber: string){}
-    async createDemonstrationScene() {
-        this.config.vehiclesForSale.forEach((e, index) => {
-            const veh = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].Vehicle(e.model, e.x, e.y, e.z, e.rx, e.ry, e.rz);
-            const primary = e.colorData.customPrimaryColor;
-            const secondary = e.colorData.customSecondaryColor;
-            veh.customPrimaryColor = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(primary.r, primary.g, primary.b, primary.a);
-            veh.customSecondaryColor = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(secondary.r, secondary.g, secondary.b, secondary.a);
-            //StreamSyncedMeta('CarForSaleId', index) используется на клиенте при создании визуальных отображений машины и цены 
-            //так как клиент проходится по такому же списку vehiclesForSale из такого же конфига при удалении StreamSyncedMeta с определенным индексом 
-            //клиент сможет удалить надпись о продаже у того авто которое было продано (удалит label по index так как index 
-            //это порядковый номер авто из конфига а конфиг одинаковый для клиента и сервера и перебирается в одном и том же порядке на сервере и клиенте)
-            veh.setStreamSyncedMeta('CarForSaleId', index);
-            this.activeVehiclesForSale.add(veh);
-        });
-    }
-    async onCarPurchaseAttempt(player) {
-        const vehicle = player.vehicle;
-        if (vehicle === null) {
-            chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
-            return;
-        }
-        if (!this.activeVehiclesForSale.has(vehicle)) {
-            chat.send(player, 'Этот автомобиль не продается');
-            return;
-        }
-        if (vehicle.hasStreamSyncedMeta('CarForSaleId')) {
-            try {
-                const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
-                const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId');
-                const vehConfigInfo = this.config.vehiclesForSale.at(CarForSaleId);
-                //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
-                const price = vehConfigInfo.price;
-                if ((currentPlayerDBData.money ?? 0) >= price) {
-                    //Вопрос кто должен заниматься подсчетами и нужно ли по ООП проводить запрос
-                    //на изщменение суммы через AccoutManager или можно сразу оптравлять в AccountDBService
-                    const playerMoneyAfterPurchase = currentPlayerDBData.money - price;
-                    await this.accoutManager.changePlayerMoney(currentPlayerDBData.accountId, playerMoneyAfterPurchase);
-                    this.vehicleDBService.insertNewRow({
-                        ownerId: currentPlayerDBData.accountId,
-                        model: vehicle.model,
-                        mainColour: vehicle.customPrimaryColor,
-                        secondaryColour: vehicle.customSecondaryColor,
-                        price: price
-                    });
-                    chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
-                    vehicle.deleteStreamSyncedMeta('CarForSaleId');
-                    this.activeVehiclesForSale.delete(vehicle);
-                }
-                else {
-                    throw new Error('На аккаунте недостаточно денег');
-                }
+    async createVehiclesForSale() {
+        for (let index = 0; index < Math.min(_config_VehConfig__WEBPACK_IMPORTED_MODULE_1__.defaultParameters.numberOfCarsForSale, _config_VehConfig__WEBPACK_IMPORTED_MODULE_1__.vehicleSpawnCoords.length); index++) {
+            const model = this.config2[index]?.model;
+            const coords = _config_VehConfig__WEBPACK_IMPORTED_MODULE_1__.vehicleSpawnCoords[index];
+            const position = _config_VehConfig__WEBPACK_IMPORTED_MODULE_1__.vehicleSpawnCoords[index]?.position;
+            const rotation = _config_VehConfig__WEBPACK_IMPORTED_MODULE_1__.vehicleSpawnCoords[index]?.rotation;
+            //            const position = coords?.position  ?? new alt.Vector3(0,0,0);
+            if (!model || !position || !rotation) {
+                throw new Error();
             }
-            catch (error) {
-                chat.send(player, `${error}`);
-            }
-            //this.vehicleDBService();
+            const veh = new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].Vehicle(model, position, rotation);
+            veh.customPrimaryColor = this.config2[index]?.customPrimaryColor ?? new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(0, 0, 0);
+            veh.customSecondaryColor = this.config2[index]?.customSecondaryColor ?? new alt_server__WEBPACK_IMPORTED_MODULE_0__["default"].RGBA(0, 0, 0);
+            veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
         }
-        else {
-            chat.send(player, 'Произошла ошибка, нет цены у авто');
-            return;
-        }
+        /*         this.config.vehiclesForSale.forEach((e, index) => {
+                    const veh = new alt.Vehicle(e.model, e.x, e.y, e.z, e.rx, e.ry, e.rz);
+                    const primary = e.colorData.customPrimaryColor;
+                    const secondary = e.colorData.customSecondaryColor;
+                    veh.customPrimaryColor = new alt.RGBA(primary.r, primary.g, primary.b, primary.a);
+                    veh.customSecondaryColor = new alt.RGBA(secondary.r, secondary.g, secondary.b, secondary.a);
+                    //StreamSyncedMeta('CarForSaleId', index) используется на клиенте при создании визуальных отображений машины и цены
+                    //так как клиент проходится по такому же списку vehiclesForSale из такого же конфига при удалении StreamSyncedMeta с определенным индексом
+                    //клиент сможет удалить надпись о продаже у того авто которое было продано (удалит label по index так как index
+                    //это порядковый номер авто из конфига а конфиг одинаковый для клиента и сервера и перебирается в одном и том же порядке на сервере и клиенте)
+                    veh.setStreamSyncedMeta('CarForSaleId', index);
+                    this.activeVehiclesForSale.add(veh);
+                }); */
     }
+    /*     async onCarPurchaseAttempt(player: alt.Player){
+            const vehicle = player.vehicle;
+            if(vehicle === null){
+                chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
+                return;
+            }
+            if(!this.activeVehiclesForSale.has(vehicle)){
+                chat.send(player, 'Этот автомобиль не продается');
+                return;
+            }
+            if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
+                try {
+                    const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
+                    const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId') as number;
+                    const vehConfigInfo = this.config.vehiclesForSale.at(CarForSaleId);
+                    //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
+                    const price = vehConfigInfo!.price;
+                    if((currentPlayerDBData.money ?? 0) >= price){
+                        //Вопрос кто должен заниматься подсчетами и нужно ли по ООП проводить запрос
+                        //на изщменение суммы через AccoutManager или можно сразу оптравлять в AccountDBService
+                        const playerMoneyAfterPurchase = currentPlayerDBData.money - price;
+                        await this.accoutManager.changePlayerMoney(currentPlayerDBData.accountId, playerMoneyAfterPurchase);
+                        this.vehicleDBService.insertNewRow({
+                            ownerId: currentPlayerDBData.accountId,
+                            model: vehicle.model,
+                            mainColour: vehicle.customPrimaryColor,
+                            secondaryColour: vehicle.customSecondaryColor,
+                            price: price
+                        });
+                        chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
+                        vehicle.deleteStreamSyncedMeta('CarForSaleId');
+                        this.activeVehiclesForSale.delete(vehicle);
+                    }
+                    else{
+                        throw new Error('На аккаунте недостаточно денег');
+                    }
+    
+                } catch (error) {
+                    chat.send(player, `${error}`);
+                }
+    
+    
+                //this.vehicleDBService();
+    
+            }
+            else{
+                chat.send(player, 'Произошла ошибка, нет цены у авто');
+                return;
+            }
+        }
+     */
     onMyVehsCommand(player) {
     }
     sendPlayerCarsForSale(player) {
@@ -7578,7 +7602,7 @@ class CommandManager {
                 }); */
         chat.registerCmd('buy', (player) => {
             //chat.send(player, 'test message with args:');
-            this.carShopServer.onCarPurchaseAttempt(player);
+            //this.carShopServer.onCarPurchaseAttempt(player);
         });
         // register login password repeat-password
         chat.registerCmd('register', (player, args) => {
@@ -7743,6 +7767,69 @@ class VehicleDBService extends _BaseDBService__WEBPACK_IMPORTED_MODULE_0__.BaseD
 
 /***/ },
 
+/***/ "./server/config/VehConfig.ts"
+/*!************************************!*\
+  !*** ./server/config/VehConfig.ts ***!
+  \************************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   defaultParameters: () => (/* binding */ defaultParameters),
+/* harmony export */   vehicleSpawnCoords: () => (/* binding */ vehicleSpawnCoords)
+/* harmony export */ });
+/* harmony import */ var alt_server__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-server */ "alt-server");
+/* harmony import */ var _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! @shared/SharedConfig */ "./shared/SharedConfig.ts");
+
+
+const vehicleSpawnCoords = [
+    {
+        position: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: -1653.32, y: -3182.40, z: 13.98 }),
+        rotation: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: 0.0, y: 0.0, z: -0.54 }),
+    },
+    {
+        position: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: -1641.80, y: -3173.96, z: 13.9 }),
+        rotation: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: 0.0, y: 0.0, z: 0.99 }),
+    },
+    {
+        position: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: -1659.27, y: -3178.36, z: 13.98 }),
+        rotation: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: 0.0, y: 0.0, z: -0.45 }),
+    },
+    {
+        position: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: -1666.10, y: -3174.30, z: 13.98 }),
+        rotation: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: 0.0, y: 0.0, z: -0.45 }),
+    },
+    {
+        position: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: -1675.67, y: -3166.40, z: 13.98 }),
+        rotation: new alt_server__WEBPACK_IMPORTED_MODULE_0__.Vector3({ x: 0.0, y: 0.0, z: -0.45 }),
+    },
+];
+const defaultParameters = {
+    numberOfCarsForSale: _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_1__.vehiclesForSaleList.length, //не может быть больше чем vehicleSpawnCoords, если будет больше будет использоваться кол-во такое же как кол-во vehicleSpawnCoords
+    invincible: true,
+    collision: false
+};
+/* sp	-1648.79, -3139.85, 13.98
+
+Position: -1641.80, -3173.96, 13.98	r 0.99
+
+
+Position: -1653.32, -3182.40, 13.98	r -0.54
+"x": -1653.32, "y": 3182.40, "z": 13.98, "rx": 0.0, "ry": 0.0, "rz": -0.54,
+
+Position: -1659.27, -3178.36, 13.98	r -0.45 +- -0.54
+
+Position: -1666.10, -3174.30, 13.98	r -0.45 +- -0.54
+
+Position: -1675.67, -3166.40, 13.98	r -0.45 +- -0.54
+
+ Position: -1682.44, -3162.03, 13.98	r -0.45 +- -0.54
+
+ */ 
+
+
+/***/ },
+
 /***/ "./server/database/database.ts"
 /*!*************************************!*\
   !*** ./server/database/database.ts ***!
@@ -7791,6 +7878,36 @@ const db = new kysely__WEBPACK_IMPORTED_MODULE_0__.Kysely({
 
 /***/ },
 
+/***/ "./shared/SharedConfig.ts"
+/*!********************************!*\
+  !*** ./shared/SharedConfig.ts ***!
+  \********************************/
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   vehiclesForSaleList: () => (/* binding */ vehiclesForSaleList)
+/* harmony export */ });
+/* harmony import */ var alt_shared__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-shared */ "alt-shared");
+
+const vehiclesForSaleList = [
+    {
+        model: "adder",
+        customPrimaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.red),
+        customSecondaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.red),
+        price: 5000
+    },
+    {
+        model: "benson",
+        customPrimaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.green),
+        customSecondaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.green),
+        price: 10000
+    }
+];
+
+
+/***/ },
+
 /***/ "alt-server"
 /*!*****************************!*\
   !*** external "alt-server" ***!
@@ -7798,6 +7915,16 @@ const db = new kysely__WEBPACK_IMPORTED_MODULE_0__.Kysely({
 (module) {
 
 module.exports = __WEBPACK_EXTERNAL_MODULE_alt_server_bcde031e__;
+
+/***/ },
+
+/***/ "alt-shared"
+/*!*****************************!*\
+  !*** external "alt-shared" ***!
+  \*****************************/
+(module) {
+
+module.exports = __WEBPACK_EXTERNAL_MODULE_alt_shared_5f1c9f48__;
 
 /***/ },
 
@@ -48586,6 +48713,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./DataBase classes/AccountDBService */ "./server/DataBase classes/AccountDBService.ts");
 /* harmony import */ var _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./DataBase classes/VehicletDBService */ "./server/DataBase classes/VehicletDBService.ts");
 /* harmony import */ var _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./config/VehConfig.json */ "./server/config/VehConfig.json");
+/* harmony import */ var _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @shared/SharedConfig */ "./shared/SharedConfig.ts");
+
 
 
 
@@ -48603,11 +48732,12 @@ class StartServer {
     carShopServer;
     //private readonly configManager: ConfigManager;
     constructor() {
+        console.log(_shared_SharedConfig__WEBPACK_IMPORTED_MODULE_8__.vehiclesForSaleList);
         //this.databaseService = new DatabaseService(db);
         this.accountDBService = new _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__.AccountDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
         this.vehicleDBService = new _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__.VehicleDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
         this.accoutManager = new _AccountManager__WEBPACK_IMPORTED_MODULE_4__.AccountManager(this.accountDBService);
-        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(_config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__, this.vehicleDBService, this.accoutManager);
+        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(/* vehiclesForSale */ _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_8__.vehiclesForSaleList, this.vehicleDBService, this.accoutManager);
         this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_2__.CommandManager(this.accoutManager, this.carShopServer);
         //this.configManager = new ConfigManager(vehiclesForSale);
         this.#init();
@@ -48689,7 +48819,7 @@ class StartServer {
                     }
                 }); */
         alt_server__WEBPACK_IMPORTED_MODULE_0__.on('resourceStart', async () => {
-            this.carShopServer.createDemonstrationScene();
+            this.carShopServer.createVehiclesForSale();
         });
         alt_server__WEBPACK_IMPORTED_MODULE_0__.on('playerConnect', async (player) => {
             //new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
@@ -48701,23 +48831,6 @@ class StartServer {
     }
 }
 new StartServer;
-/* sp	-1648.79, -3139.85, 13.98
-
-Position: -1641.80, -3173.96, 13.98	r 0.99
-
-
-Position: -1653.32, -3182.40, 13.98	r -0.54
-"x": -1653.32, "y": 3182.40, "z": 13.98, "rx": 0.0, "ry": 0.0, "rz": -0.54,
-
-Position: -1659.27, -3178.36, 13.98	r -0.45 +- -0.54
-
-Position: -1666.10, -3174.30, 13.98	r -0.45 +- -0.54
-
-Position: -1675.67, -3166.40, 13.98	r -0.45 +- -0.54
-
- Position: -1682.44, -3162.03, 13.98	r -0.45 +- -0.54
-
- */ 
 
 })();
 

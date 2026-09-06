@@ -12,7 +12,7 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "target": "esnext",
-    "types": ["node", "@altv/types-client", "@altv/types-server", "@altv/types-natives"],
+    "types": ["node", "@altv/types-client", "@altv/types-server", "@altv/types-shared", "@altv/types-natives"],
     // For nodejs:
     "lib": ["esnext"],
     // and npm install -D @types/node

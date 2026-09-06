@@ -2,9 +2,10 @@ import * as alt from 'alt-client';
 import native from 'natives'
 
 import { drawNotification } from './utilities';
-let label: any;
 
 import { IVehiclesConfig } from '@shared/types/IVehiclesConfig'
+import { vehiclesForSaleList } from '@shared/SharedConfig'
+
 import { CarShopVisuals } from './CarShopVisuals'
 
 
@@ -32,63 +33,73 @@ class CarShopClient {
                     }
                 }
             } 
-        //marker 500 1 2
-            if(command === 'marker'){
-                const fontSize = arg[0] ? Number(arg[0]) : 10;
-                const scale = arg[1] ? Number(arg[1]) : 2;
-                const outlineWidth = arg[2] ? Number(arg[2]) : 1;
+            if(command === 'print'){
+                this.carShopVisuals.print();
+            }
+        });
 
-                if (label && label.valid) {
-                    label.destroy();
-                }
-
-                label = new alt.TextLabel(
-                    'Text\nText2', 
-                    `ChaletLondon`,
-                    fontSize,      
-                    scale,         
-                    new alt.Vector3(-1648.79, -3139.85, 13.98), 
-                    new alt.Vector3(0,0,0), 
-                    new alt.RGBA(255, 0, 0, 255), 
-                    outlineWidth,
-                    new alt.RGBA(0, 0, 255, 255), 
-                    true, 
-                    10
-                );
-                //(text: string, fontName: string, fontSize: number, scale: number, pos: alt.IVector3, rot: alt.IVector3, tColor: alt.RGBA, outlineWidth: number, outlinetColor: alt.RGBA, useStreaming?: boolean, streamingDistance?: number)
+        alt.on("gameEntityCreate", async (entity) => {
+            //пока что костыль, почему то при тп в зону с авто их коордлинаты считаются 0, хотя все проверки на valid isspawned visible scriptID и т.д. говорят что авто заспанилось корректно
+            //почему то все проверки говорят что авто норм, но координаты неправильны, поэтому добавил задержку перед спавном текста что бы он был на корректных координатах
+            if(entity.pos.x === 0){
+                await new Promise(resolve => alt.setTimeout(resolve, 1000));
             }
 
-            if(command === 'destroy'){
-                label.destroy();
-                label = null;
+            if(entity.hasStreamSyncedMeta('CarForSaleId')){
+                const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
+                const nativeResult = native.getModelDimensions(entity.model);
+                native.freezeEntityPosition(entity.scriptID, true);
+                native.setVehicleUndriveable(entity.scriptID, true);
+                native.setEntityCanBeDamaged(entity.scriptID, false);
+                //native.setVehicleCanBreak(entity.scriptID, false);
+                
+                //длинна от центра машины до ее передней точки по y (независимо от угла под каким стоит машина, вычисления идут по модели в дефолт расположении по осям)
+                const y = nativeResult[2].y;
+
+                const expectedX = entity.pos.x - Math.sin(entity.rot.z) * y;
+                const expectedY = entity.pos.y + Math.cos(entity.rot.z) * y;
+                const expectedZ = entity.pos.z;
+
+                const coords = new alt.Vector3(expectedX, expectedY, expectedZ);
+                const configData = vehiclesForSaleList[index];
+                this.carShopVisuals.createTextLabel(coords, configData!, entity.rot, index);
             }
-            if(command === 'font'){
-                console.log('label.font', label.font);
+        });
+
+        alt.on("gameEntityDestroy", async (entity) => {
+            if(entity.hasStreamSyncedMeta('CarForSaleId')){
+                const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
+                this.carShopVisuals.testDell(index);
             }
         });
 
         alt.on('startEnteringVehicle', (vehicle, seat, player) => {
             console.log("vehicle.id", vehicle.id)
-            const model = native.getDisplayNameFromVehicleModel(vehicle.model);
             if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
-                drawNotification(`/buy что бы купить машину ${model?.toLowerCase}`);      //вынести текст в конфиг
+                const model = native.getDisplayNameFromVehicleModel(vehicle.model);
+                drawNotification(`/buy что бы купить машину ${model?.toLowerCase()}`);      //вынести текст в конфиг
             }
         });
 
         alt.on('streamSyncedMetaChange', (entity, metaKey, value, oldValue) => {
+            if (!(entity instanceof alt.Entity)) return;
+
             if(metaKey === 'CarForSaleId' && value === undefined){
+                native.freezeEntityPosition(entity.scriptID, false);
+                native.setVehicleUndriveable(entity.scriptID, false);
+                native.setEntityCanBeDamaged(entity.scriptID, true);
                 this.carShopVisuals.testDell(oldValue);
             }
         });
 
         alt.onServer('carShop:createClientDemonstrationScene', (vehiclesForSale) => {
-            this.carShopVisuals.createTextLabels(vehiclesForSale);
-            //this.#createDemonstrationScene(vehiclesForSale);
+            //this.carShopVisuals.createTextLabels(vehiclesForSale);
+            //this.#createVehiclesForSale(vehiclesForSale);
 
         });
     }
 
-    #createDemonstrationScene(config: IVehiclesConfig){
+    #createVehiclesForSale(config: IVehiclesConfig){
 /*         for (let index = 0; index < config.vehiclesForSale.length; index++) {
             const e = config.vehiclesForSale[index];
             const text = e.textCoords;

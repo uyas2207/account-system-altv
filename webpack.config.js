@@ -86,6 +86,7 @@ return [
       externals: {
         'alt-server': 'alt-server',
         'alt:chat' : 'alt:chat',
+        'alt-shared': 'alt-shared'
       },
       module: commonModule,
       optimization: {

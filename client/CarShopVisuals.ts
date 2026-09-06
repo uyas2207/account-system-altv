@@ -1,6 +1,7 @@
 import * as alt from 'alt-client';
 
 import { IVehiclesConfig } from '@shared/types/IVehiclesConfig'
+import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig2'
 
 export class CarShopVisuals {
     //возможно можно использовать что то более простое чем map, но по поиску элементов и их удалению не меняя id по которым будет обращения map подходит больше всего (если в массиве удалить элемент по index остальные индексы съедут а держать пустой элемент в нем что бы индексы не съезжали неправильно)
@@ -9,41 +10,30 @@ export class CarShopVisuals {
     constructor(){
     }
 
-    createTextLabels(config: IVehiclesConfig){
-        config.vehiclesForSale.forEach((e, index) => {
-            const text = e.textCoords;
-            const tColor = e.textColor;
-            const label = new alt.TextLabel(
-                `${e.model}\n${e.price}`,
-                "ChaletLondon",
-                100,
-                1,
-                new alt.Vector3(
-                    e.x + text.offsetX,
-                    e.y + text.offsetY, 
-                    e.z + text.offsetZ
-                ),
-                new alt.Vector3( e.rx, e.ry, e.rz),
-                new alt.RGBA(tColor.r, tColor.g, tColor.b, tColor.a),
-                2,
-                new alt.RGBA(tColor.r, tColor.g, tColor.b, tColor.a),
-                true,
-                text.distance
-            );
-            console.log('label.font', label.font);
-            this.priceTextLabels.set(index, label);
-        });
+    createTextLabel(coords: alt.Vector3, e: IVehiclesForSaleList, rotation: alt.Vector3, index: number){
+        const label = new alt.TextLabel(
+            `${e.model}\n${e.price}`,
+            "ChaletLondon",
+            100,
+            1,
+            coords,
+            rotation,
+            new alt.RGBA(alt.RGBA.white),               //вынести в конфиг
+            2,
+            new alt.RGBA(alt.RGBA.white),
+            true,
+            100   
+        );
+        this.priceTextLabels.set(index, label);
+        alt.logDebug('Создан labex:', index);
     }
 
     testDell(index: number){
-        if(this.priceTextLabels.has(index) !== null && this.priceTextLabels.get(index) !== undefined){
-        const label = this.priceTextLabels.get(index)
-        // !. так как проверка на undefined уже была 
-        label!.destroy();
-        this.priceTextLabels.delete(index);
-        }
-        else{
-            alt.logError(`Под значением ${index} нет label`);
+        if(this.priceTextLabels.has(index)){
+            const label = this.priceTextLabels.get(index)
+            label!.destroy();
+            this.priceTextLabels.delete(index);
+            alt.logDebug('Удален labex:', index);
         }
     }
 

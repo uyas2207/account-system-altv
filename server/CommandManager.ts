@@ -64,7 +64,7 @@ export class CommandManager {
     
         chat.registerCmd('buy', (player: alt.Player) => {
             //chat.send(player, 'test message with args:');
-            this.carShopServer.onCarPurchaseAttempt(player);
+            //this.carShopServer.onCarPurchaseAttempt(player);
         });
         // register login password repeat-password
         chat.registerCmd('register', (player: alt.Player, args: Array<string>) => {
