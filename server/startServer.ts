@@ -10,8 +10,6 @@ import { AccountManager } from './AccountManager'
 import { AccountDBService } from './DataBase classes/AccountDBService';
 import { VehicleDBService } from './DataBase classes/VehicletDBService';
 
-import { ConfigManager } from './ConfigManager'
-import vehiclesForSale from './config/VehConfig.json' with { type: 'json' };
 
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 class StartServer {
@@ -61,11 +59,12 @@ class StartServer {
                     ownerId: 1,
                     model: 123,
                     mainColour: { "r": 0, "g": 255, "b": 0, "a": 255  },
-                    secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
+                    secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 },
+                    price: 5000
                 });
             }
             if(command === "addn"){
-                this.vehicleDBService.updateRowByPrimaryKey(13, 'registrationNumber', "A123AA_99");
+                this.vehicleDBService.updateRowRegistrationNumberByPrimaryKey(13, "A123AA_99");
             }
 
             if(command === 'delltest'){
@@ -127,7 +126,7 @@ class StartServer {
             //new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
             //player.spawn(-1269.91, -1438.64, 4.46);
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
-            alt.emitClient(player, 'carShop:createClientDemonstrationScene', vehiclesForSale);
+            //alt.emitClient(player, 'carShop:createClientDemonstrationScene', vehiclesForSale);
             //this.carShopServer.sendPlayerCarsForSale(player);
         });
     }

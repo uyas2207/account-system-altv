@@ -7342,6 +7342,7 @@ class AccountManager {
             throw new Error('Данный аккаунт уже используется');
         }
         const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
+        currentPlayerDBData?.accountId;
         if ((currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)) {
             throw new Error('Введен некорректный логин или пароль');
         }
@@ -7364,6 +7365,11 @@ class AccountManager {
         //       } catch (error) {
         //         throw new Error('Произошла ошибка при добавлении аккаунта в базу данных');
         //   }
+    }
+    onAccountVehsAttempt(player) {
+        const currentPlayerAccountId = this.requestPlayerAccountId(player);
+        console.log("currentPlayerAccountId", currentPlayerAccountId);
+        return currentPlayerAccountId;
     }
     async requestPlayerDBData(player) {
         if (!this.allLoginnedPlayers.has(player)) {
@@ -7473,57 +7479,53 @@ class CarShopServer {
                     this.activeVehiclesForSale.add(veh);
                 }); */
     }
-    /*     async onCarPurchaseAttempt(player: alt.Player){
-            const vehicle = player.vehicle;
-            if(vehicle === null){
-                chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
-                return;
+    async onCarPurchaseAttempt(player) {
+        const vehicle = this.checkIsCarForSale(player);
+        try {
+            const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
+            const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId');
+            const vehConfigInfo = this.config2[CarForSaleId];
+            //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
+            const price = vehConfigInfo.price;
+            if ((currentPlayerDBData.money ?? 0) >= price) {
+                //Вопрос кто должен заниматься подсчетами и нужно ли по ООП проводить запрос
+                //на изщменение суммы через AccoutManager или можно сразу оптравлять в AccountDBService
+                const playerMoneyAfterPurchase = currentPlayerDBData.money - price;
+                await this.accoutManager.changePlayerMoney(currentPlayerDBData.accountId, playerMoneyAfterPurchase);
+                this.vehicleDBService.insertNewRow({
+                    ownerId: currentPlayerDBData.accountId,
+                    model: vehicle.model,
+                    mainColour: vehicle.customPrimaryColor,
+                    secondaryColour: vehicle.customSecondaryColor,
+                    price: price
+                });
+                chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
+                vehicle.deleteStreamSyncedMeta('CarForSaleId');
+                this.activeVehiclesForSale.delete(vehicle);
             }
-            if(!this.activeVehiclesForSale.has(vehicle)){
-                chat.send(player, 'Этот автомобиль не продается');
-                return;
-            }
-            if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
-                try {
-                    const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
-                    const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId') as number;
-                    const vehConfigInfo = this.config.vehiclesForSale.at(CarForSaleId);
-                    //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
-                    const price = vehConfigInfo!.price;
-                    if((currentPlayerDBData.money ?? 0) >= price){
-                        //Вопрос кто должен заниматься подсчетами и нужно ли по ООП проводить запрос
-                        //на изщменение суммы через AccoutManager или можно сразу оптравлять в AccountDBService
-                        const playerMoneyAfterPurchase = currentPlayerDBData.money - price;
-                        await this.accoutManager.changePlayerMoney(currentPlayerDBData.accountId, playerMoneyAfterPurchase);
-                        this.vehicleDBService.insertNewRow({
-                            ownerId: currentPlayerDBData.accountId,
-                            model: vehicle.model,
-                            mainColour: vehicle.customPrimaryColor,
-                            secondaryColour: vehicle.customSecondaryColor,
-                            price: price
-                        });
-                        chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
-                        vehicle.deleteStreamSyncedMeta('CarForSaleId');
-                        this.activeVehiclesForSale.delete(vehicle);
-                    }
-                    else{
-                        throw new Error('На аккаунте недостаточно денег');
-                    }
-    
-                } catch (error) {
-                    chat.send(player, `${error}`);
-                }
-    
-    
-                //this.vehicleDBService();
-    
-            }
-            else{
-                chat.send(player, 'Произошла ошибка, нет цены у авто');
-                return;
+            else {
+                throw new Error('На аккаунте недостаточно денег');
             }
         }
-     */
+        catch (error) {
+            chat.send(player, `${error}`);
+        }
+        //this.vehicleDBService();
+    }
+    checkIsCarForSale(player) {
+        const vehicle = player.vehicle;
+        if (vehicle === null) {
+            throw new Error('Для покупки автомобиля нужно сидеть в автомобиле');
+            /*             chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
+                        return; */
+        }
+        if (!vehicle.hasStreamSyncedMeta('CarForSaleId')) {
+            throw new Error('Для покупки автомобиля нужно сидеть в автомобиле');
+            /*             chat.send(player, 'Этот автомобиль не продается');
+                        return; */
+        }
+        return vehicle;
+    }
     onMyVehsCommand(player) {
     }
     sendPlayerCarsForSale(player) {
@@ -7600,7 +7602,13 @@ class CommandManager {
                 
                     }
                 }); */
-        chat.registerCmd('buy', (player) => {
+        chat.registerCmd('buy', async (player) => {
+            try {
+                this.carShopServer.onCarPurchaseAttempt(player);
+            }
+            catch (error) {
+                chat.send(player, 'Произошла  ошибка:', error);
+            }
             //chat.send(player, 'test message with args:');
             //this.carShopServer.onCarPurchaseAttempt(player);
         });
@@ -7611,19 +7619,24 @@ class CommandManager {
             const repeatPassword = args[2];
             console.log('login, password, repeatPassword', login, password, repeatPassword);
             if (login === undefined || password === undefined || repeatPassword === undefined) {
-                console.log("/register <login> <password> <repeat-password>");
-                console.log("Не введены значения login, password или repeat-password");
+                chat.send(player, "/register <login> <password> <repeat-password>");
+                chat.send(player, "Не введены значения login, password или repeat-password");
                 return;
             }
-            this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+            try {
+                this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+            }
+            catch (error) {
+                chat.send(player, 'Произошла  ошибка:', error);
+            }
         });
         // login login password
         chat.registerCmd('login', (player, args) => {
             console.log('args[0], args[1]', args[0], args[1]);
             //chat.send(player, 'test message with args:');
             if (args[0] === undefined || args[1] === undefined) {
-                console.log("/login <login> <password>");
-                console.log("Не введены значения password или login");
+                chat.send(player, "/login <login> <password>");
+                chat.send(player, "Не введены значения password или login");
                 return;
             }
             try {
@@ -7636,6 +7649,12 @@ class CommandManager {
         });
         // myvehs
         chat.registerCmd('myvehs', (player) => {
+            try {
+                const currentPlayerAccountId = this.accoutManager.onAccountVehsAttempt(player);
+                this.carShopServer;
+            }
+            catch (error) {
+            }
         });
         // register login password repeat-password
         /*         chat.registerCmd('login', (player: alt.Player, login:string, password:string) => {
@@ -7721,15 +7740,6 @@ class BaseDBService {
         //так как в бд отправляется строка { r: 0, g: 255, b: 0, a: 255 } вместо { "r": 0, "g": 255, "b": 0, "a": 255 }
         //поэтому перед отправкой надо сделать JSON.stringify, а для того что бы на такое не ругался ts нужно сделать values as any
         //по идее values as any ничем не мешает так как проверка на правильный тип значений уже была выполнена в values: Insertable<Database[T]>
-        /*         const preparedValues = values as any;
-        
-                for (const key in preparedValues) {
-                    const currentValue = preparedValues[key];
-                    if (typeof currentValue === 'object') {
-                        preparedValues[key] = JSON.stringify(currentValue);
-                    }
-                }
-         */
         await this.db
             .insertInto(this.tableName)
             .values(values)
@@ -7842,7 +7852,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 /* harmony import */ var kysely__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! kysely */ "./node_modules/kysely/dist/kysely.js");
 /* harmony import */ var kysely__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! kysely */ "./node_modules/kysely/dist/dialect/mysql/mysql-dialect.js");
-/* harmony import */ var mysql2__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! mysql2 */ "./node_modules/mysql2/index.js");
+/* harmony import */ var kysely__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! kysely */ "./node_modules/kysely/dist/plugin/parse-json-results/parse-json-results-plugin.js");
+/* harmony import */ var mysql2__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! mysql2 */ "./node_modules/mysql2/index.js");
 
 
 /*
@@ -7860,7 +7871,7 @@ CREATE TABLE vehicles (
 //    FOREIGN KEY (ownerId) REFERENCES account(id),
 const db = new kysely__WEBPACK_IMPORTED_MODULE_0__.Kysely({
     dialect: new kysely__WEBPACK_IMPORTED_MODULE_1__.MysqlDialect({
-        pool: (0,mysql2__WEBPACK_IMPORTED_MODULE_2__.createPool)({
+        pool: (0,mysql2__WEBPACK_IMPORTED_MODULE_3__.createPool)({
             host: '127.0.0.1',
             port: 3306,
             user: 'root',
@@ -7872,7 +7883,8 @@ const db = new kysely__WEBPACK_IMPORTED_MODULE_0__.Kysely({
             console.log('SQL:', event.query.sql);
             console.log('Parameters:', event.query.parameters);
         }
-    }
+    },
+    plugins: [new kysely__WEBPACK_IMPORTED_MODULE_2__.ParseJSONResultsPlugin()]
 });
 
 
@@ -36697,6 +36709,164 @@ class NoopPlugin {
 
 /***/ },
 
+/***/ "./node_modules/kysely/dist/plugin/parse-json-results/parse-json-results-plugin.js"
+/*!*****************************************************************************************!*\
+  !*** ./node_modules/kysely/dist/plugin/parse-json-results/parse-json-results-plugin.js ***!
+  \*****************************************************************************************/
+(__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   ParseJSONResultsPlugin: () => (/* binding */ ParseJSONResultsPlugin)
+/* harmony export */ });
+/* harmony import */ var _util_object_utils_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ../../util/object-utils.js */ "./node_modules/kysely/dist/util/object-utils.js");
+/// <reference types="./parse-json-results-plugin.d.ts" />
+
+/**
+ * Parses JSON strings in query results into JSON objects.
+ *
+ * This plugin can be useful with dialects that don't automatically parse
+ * JSON into objects and arrays but return JSON strings instead.
+ *
+ * To apply this plugin globally, pass an instance of it to the `plugins` option
+ * when creating a new `Kysely` instance:
+ *
+ * ```ts
+ * import * as Sqlite from 'better-sqlite3'
+ * import { Kysely, ParseJSONResultsPlugin, SqliteDialect } from 'kysely'
+ * import type { Database } from 'type-editor' // imaginary module
+ *
+ * const db = new Kysely<Database>({
+ *   dialect: new SqliteDialect({
+ *     database: new Sqlite(':memory:'),
+ *   }),
+ *   plugins: [new ParseJSONResultsPlugin()],
+ * })
+ * ```
+ *
+ * To apply this plugin to a single query:
+ *
+ * ```ts
+ * import { ParseJSONResultsPlugin } from 'kysely'
+ * import { jsonArrayFrom } from 'kysely/helpers/sqlite'
+ *
+ * const result = await db
+ *   .selectFrom('person')
+ *   .select((eb) => [
+ *     'id',
+ *     'first_name',
+ *     'last_name',
+ *     jsonArrayFrom(
+ *       eb.selectFrom('pet')
+ *         .whereRef('owner_id', '=', 'person.id')
+ *         .select(['name', 'species'])
+ *     ).as('pets')
+ *   ])
+ *   .withPlugin(new ParseJSONResultsPlugin())
+ *   .execute()
+ * ```
+ */
+class ParseJSONResultsPlugin {
+    options;
+    #options;
+    constructor(options = {}) {
+        this.options = options;
+        const { shouldParse } = options;
+        this.#options = (0,_util_object_utils_js__WEBPACK_IMPORTED_MODULE_0__.freeze)({
+            objectStrategy: options.objectStrategy || 'in-place',
+            reviver: options.reviver || ((_, value) => value),
+            shouldParse: shouldParse
+                ? (value, jsonPath) => maybeJson(value) && shouldParse(value, jsonPath)
+                : maybeJson,
+        });
+    }
+    // noop
+    transformQuery(args) {
+        return args.node;
+    }
+    async transformResult(args) {
+        return {
+            ...args.result,
+            rows: parseArray(args.result.rows, '$', this.#options),
+        };
+    }
+}
+function parseArray(arr, jsonPath, options) {
+    const target = options.objectStrategy === 'create' ? new Array(arr.length) : arr;
+    for (let i = 0; i < arr.length; ++i) {
+        target[i] = parse(arr[i], `${jsonPath}[${i}]`, options);
+    }
+    return target;
+}
+function parse(value, jsonPath, options) {
+    if ((0,_util_object_utils_js__WEBPACK_IMPORTED_MODULE_0__.isString)(value)) {
+        return parseString(value, jsonPath, options);
+    }
+    if (Array.isArray(value)) {
+        return parseArray(value, jsonPath, options);
+    }
+    if ((0,_util_object_utils_js__WEBPACK_IMPORTED_MODULE_0__.isPlainObject)(value)) {
+        return parseObject(value, jsonPath, options);
+    }
+    return value;
+}
+function parseString(str, jsonPath, options) {
+    const { shouldParse } = options;
+    if (!shouldParse(str, jsonPath)) {
+        return str;
+    }
+    try {
+        return parse(JSON.parse(str, (key, value, ...otherArgs) => {
+            // prevent prototype pollution
+            if (key === '__proto__') {
+                return;
+            }
+            // prevent prototype pollution
+            if (key === 'constructor' &&
+                (0,_util_object_utils_js__WEBPACK_IMPORTED_MODULE_0__.isPlainObject)(value) &&
+                Object.hasOwn(value, 'prototype')) {
+                delete value.prototype;
+            }
+            return options.reviver(key, value, ...otherArgs);
+        }), jsonPath, { ...options, objectStrategy: 'in-place' });
+    }
+    catch (error) {
+        // custom JSON detection should expose parsing errors.
+        if (shouldParse !== maybeJson) {
+            throw error;
+        }
+        // built-in naive heuristic should keep going despite errors given there might be false positives in detection.
+        console.error(error);
+        return str;
+    }
+}
+function maybeJson(value) {
+    return ((value.startsWith('{') && value.endsWith('}')) ||
+        (value.startsWith('[') && value.endsWith(']')));
+}
+function parseObject(obj, jsonPath, options) {
+    const { objectStrategy } = options;
+    const target = objectStrategy === 'create' ? {} : obj;
+    for (const key of Object.keys(obj)) {
+        // prevent prototype pollution
+        if (key === '__proto__') {
+            continue;
+        }
+        const parsed = parse(obj[key], `${jsonPath}."${key}"`, options);
+        // prevent prototype pollution
+        if (key === 'constructor' &&
+            (0,_util_object_utils_js__WEBPACK_IMPORTED_MODULE_0__.isPlainObject)(parsed) &&
+            Object.hasOwn(parsed, 'prototype')) {
+            delete parsed.prototype;
+        }
+        target[key] = parsed;
+    }
+    return target;
+}
+
+
+/***/ },
+
 /***/ "./node_modules/kysely/dist/plugin/with-schema/with-schema-plugin.js"
 /*!***************************************************************************!*\
   !*** ./node_modules/kysely/dist/plugin/with-schema/with-schema-plugin.js ***!
@@ -48609,16 +48779,6 @@ module.exports = /*#__PURE__*/JSON.parse('[["0","\\u0000",128],["a1","｡",62],[
 
 module.exports = /*#__PURE__*/JSON.parse('{"name":"mysql2","version":"3.24.3","description":"fast mysql driver. Implements core protocol, prepared statements, ssl and compression in native JS","main":"index.js","typings":"typings/mysql/index","type":"commonjs","scripts":{"lint":"biome lint --error-on-warnings && prettier --check .","lint:fix":"biome lint --write . && prettier --write .","test":"poku","test:bun":"bun poku","test:deno":"deno run -A npm:poku","test:docker:up":"docker compose -f test/docker-compose.yml up --abort-on-container-exit --remove-orphans","test:docker:down":"docker compose -f test/docker-compose.yml down","test:docker:node":"npm run test:docker:up -- node && npm run test:docker:down","test:docker:bun":"npm run test:docker:up -- bun && npm run test:docker:down","test:docker:deno":"npm run test:docker:up -- deno && npm run test:docker:down","test:docker:coverage":"npm run test:docker:up -- coverage && npm run test:docker:down","test:coverage":"c8 npm test","test:build":"rollup -c","typecheck":"cd \\"test/tsc-build\\" && tsc -p \\"tsconfig.json\\" && cd .. && tsc -p \\"tsconfig.json\\" --noEmit","benchmark":"node ./benchmarks/benchmark.js","wait-port":"wait-on"},"repository":{"type":"git","url":"git+https://github.com/sidorares/node-mysql2.git"},"homepage":"https://sidorares.github.io/node-mysql2/docs","keywords":["mysql","client","server"],"files":["lib","typings/mysql","index.js","index.d.ts","promise.js","promise.d.ts"],"exports":{".":"./index.js","./package.json":"./package.json","./promise":"./promise.js","./promise.js":"./promise.js"},"engines":{"node":">= 8.0"},"author":"Andrey Sidorov <andrey.sidorov@gmail.com>","license":"MIT","dependencies":{"aws-ssl-profiles":"^1.1.2","generate-function":"^2.3.1","iconv-lite":"^0.7.3","long":"^5.3.2","lru.min":"^1.1.4","named-placeholders":"^1.1.6","sql-escaper":"^1.5.1"},"peerDependencies":{"@types/node":">= 8"},"devDependencies":{"@biomejs/biome":"^2.5.7","@ianvs/prettier-plugin-sort-imports":"^4.7.1","@pokujs/multi-suite":"^1.0.2","@rollup/plugin-commonjs":"^29.0.3","@rollup/plugin-json":"^6.1.0","@rollup/plugin-node-resolve":"^16.0.3","@types/node":"^26.2.0","assert-diff":"^3.0.4","benchmark":"^2.1.4","c8":"^12.0.0","error-stack-parser":"^2.1.4","poku":"^4.5.0","portfinder":"^1.0.38","prettier":"^3.9.6","rollup":"^4.62.4","tsx":"^4.23.11","typescript":"^7.0.2"}}');
 
-/***/ },
-
-/***/ "./server/config/VehConfig.json"
-/*!**************************************!*\
-  !*** ./server/config/VehConfig.json ***!
-  \**************************************/
-(module) {
-
-module.exports = /*#__PURE__*/JSON.parse('{"vehiclesForSale":[{"model":"adder","x":-1653.32,"y":-3182.4,"z":13.98,"rx":0,"ry":0,"rz":-0.54,"colorData":{"customPrimaryColor":{"r":0,"g":0,"b":255,"a":255},"customSecondaryColor":{"r":0,"g":0,"b":255,"a":255}},"textCoords":{"offsetX":0,"offsetY":0,"offsetZ":1.2,"distance":15},"textColor":{"r":0,"g":0,"b":255,"a":255},"price":5000},{"model":"benson","x":-1641.8,"y":-3173.96,"z":13.9,"rx":0,"ry":0,"rz":0.99,"colorData":{"customPrimaryColor":{"r":0,"g":255,"b":0,"a":255},"customSecondaryColor":{"r":0,"g":255,"b":0,"a":255}},"textCoords":{"offsetX":-3.5,"offsetY":2.55,"offsetZ":1.2,"distance":15},"textColor":{"r":0,"g":255,"b":0,"a":255},"price":10000}]}');
-
 /***/ }
 
 /******/ });
@@ -48712,9 +48872,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _AccountManager__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./AccountManager */ "./server/AccountManager.ts");
 /* harmony import */ var _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! ./DataBase classes/AccountDBService */ "./server/DataBase classes/AccountDBService.ts");
 /* harmony import */ var _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__ = __webpack_require__(/*! ./DataBase classes/VehicletDBService */ "./server/DataBase classes/VehicletDBService.ts");
-/* harmony import */ var _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! ./config/VehConfig.json */ "./server/config/VehConfig.json");
-/* harmony import */ var _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_8__ = __webpack_require__(/*! @shared/SharedConfig */ "./shared/SharedConfig.ts");
-
+/* harmony import */ var _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_7__ = __webpack_require__(/*! @shared/SharedConfig */ "./shared/SharedConfig.ts");
 
 
 
@@ -48732,12 +48890,12 @@ class StartServer {
     carShopServer;
     //private readonly configManager: ConfigManager;
     constructor() {
-        console.log(_shared_SharedConfig__WEBPACK_IMPORTED_MODULE_8__.vehiclesForSaleList);
+        console.log(_shared_SharedConfig__WEBPACK_IMPORTED_MODULE_7__.vehiclesForSaleList);
         //this.databaseService = new DatabaseService(db);
         this.accountDBService = new _DataBase_classes_AccountDBService__WEBPACK_IMPORTED_MODULE_5__.AccountDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
         this.vehicleDBService = new _DataBase_classes_VehicletDBService__WEBPACK_IMPORTED_MODULE_6__.VehicleDBService(_database_database__WEBPACK_IMPORTED_MODULE_1__.db);
         this.accoutManager = new _AccountManager__WEBPACK_IMPORTED_MODULE_4__.AccountManager(this.accountDBService);
-        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(/* vehiclesForSale */ _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_8__.vehiclesForSaleList, this.vehicleDBService, this.accoutManager);
+        this.carShopServer = new _CarShopServer__WEBPACK_IMPORTED_MODULE_3__.CarShopServer(/* vehiclesForSale */ _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_7__.vehiclesForSaleList, this.vehicleDBService, this.accoutManager);
         this.commandManager = new _CommandManager__WEBPACK_IMPORTED_MODULE_2__.CommandManager(this.accoutManager, this.carShopServer);
         //this.configManager = new ConfigManager(vehiclesForSale);
         this.#init();
@@ -48763,7 +48921,8 @@ class StartServer {
                     ownerId: 1,
                     model: 123,
                     mainColour: { "r": 0, "g": 255, "b": 0, "a": 255 },
-                    secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 }
+                    secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 },
+                    price: 5000
                 });
             }
             if (command === "addn") {
@@ -48825,7 +48984,7 @@ class StartServer {
             //new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
             //player.spawn(-1269.91, -1438.64, 4.46);
             player.spawn(-1648.79, -3139.85, 13.98, 4.46);
-            alt_server__WEBPACK_IMPORTED_MODULE_0__.emitClient(player, 'carShop:createClientDemonstrationScene', _config_VehConfig_json__WEBPACK_IMPORTED_MODULE_7__);
+            //alt.emitClient(player, 'carShop:createClientDemonstrationScene', vehiclesForSale);
             //this.carShopServer.sendPlayerCarsForSale(player);
         });
     }

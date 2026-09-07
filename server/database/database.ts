@@ -1,14 +1,20 @@
-import { Generated, Kysely, MysqlDialect, JSONColumnType, ColumnType } from 'kysely';
+import { Generated, Kysely, MysqlDialect, ParseJSONResultsPlugin } from 'kysely';
 import { createPool } from 'mysql2';
-import {IColorRGBA} from '@shared/types/IVehiclesConfig'
+
+import * as alt from 'alt-server';
+
 export interface Database {
-    account: {
-        accountId: Generated<number>;
-        login: string;
-        password: string;
-        registrationDate: Generated<Date>;
-        money: number;
-    };
+    account: Account;
+    vehicles: Vehicles;
+}
+
+export interface Account {
+    accountId: Generated<number>;
+    login: string;
+    password: string;
+    registrationDate: Generated<Date>;
+    money: number;
+}
 /*
 CREATE TABLE account (
     accountId INT AUTO_INCREMENT PRIMARY KEY,
@@ -18,15 +24,14 @@ CREATE TABLE account (
     money INT
 );
 */
-    vehicles: {
-        vehId: Generated<number>;
-        ownerId: number;
-        model: number;  //хэш авто это number
-        mainColour:  ColumnType<IColorRGBA>;
-        secondaryColour: ColumnType<IColorRGBA>;
-        registrationNumber: string | null;
-        price: number | null;
-    };
+export interface Vehicles {
+    vehId: Generated<number>;
+    ownerId: number;
+    model: number; 
+    mainColour:  alt.RGBA | any;
+    secondaryColour: alt.RGBA | any;
+    registrationNumber: string | null;
+    price: number | null;    
 }
 /* 
 CREATE TABLE vehicles (
@@ -40,8 +45,6 @@ CREATE TABLE vehicles (
     CONSTRAINT vehicle_owner FOREIGN KEY (ownerId) REFERENCES account(accountId) ON DELETE CASCADE
 ); 
 */
-
-//    FOREIGN KEY (ownerId) REFERENCES account(id),
 
 export const db = new Kysely<Database>({
     dialect: new MysqlDialect({
@@ -57,6 +60,6 @@ export const db = new Kysely<Database>({
             console.log('SQL:', event.query.sql);
             console.log('Parameters:', event.query.parameters);
         }
-    }
+    },
+    plugins: [new ParseJSONResultsPlugin()]
 });
-

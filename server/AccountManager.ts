@@ -25,7 +25,7 @@ export class AccountManager {
         }
 
         const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
-
+currentPlayerDBData?.accountId
         if( (currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)){
             throw new Error('Введен некорректный логин или пароль');
         }
@@ -54,6 +54,12 @@ export class AccountManager {
      //   }
     }
 
+    onAccountVehsAttempt(player: alt.Player){
+        const currentPlayerAccountId = this.requestPlayerAccountId(player);
+        console.log("currentPlayerAccountId",currentPlayerAccountId)
+        return currentPlayerAccountId;
+    }
+
     async requestPlayerDBData(player: alt.Player){
         if(!this.allLoginnedPlayers.has(player)){
             throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
@@ -76,7 +82,7 @@ export class AccountManager {
 
     async changePlayerMoney(accountId: number, money: number){
         try {
-            await this.accountDBService.updateRowByPrimaryKey(accountId, 'money', money);
+            await this.accountDBService.updateRowMoneyByPrimaryKey(accountId, money);
         } catch (error) {
             
         }

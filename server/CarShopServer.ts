@@ -1,7 +1,6 @@
 import alt from 'alt-server';
 const chat = require('alt:chat'); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 
-import { IVehiclesConfig } from '@shared/types/IVehiclesConfig'
 import { VehicleDBService } from './DataBase classes/VehicletDBService'
 import { AccountManager } from './AccountManager'
 
@@ -69,21 +68,12 @@ export class CarShopServer{
         }); */
     }
 
-/*     async onCarPurchaseAttempt(player: alt.Player){
-        const vehicle = player.vehicle;
-        if(vehicle === null){
-            chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
-            return;
-        }
-        if(!this.activeVehiclesForSale.has(vehicle)){
-            chat.send(player, 'Этот автомобиль не продается');
-            return;
-        }
-        if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
+    async onCarPurchaseAttempt(player: alt.Player, ){
+        const vehicle = this.checkIsCarForSale(player);
             try {
                 const currentPlayerDBData = await this.accoutManager.requestPlayerDBData(player);
                 const CarForSaleId = vehicle.getStreamSyncedMeta('CarForSaleId') as number;
-                const vehConfigInfo = this.config.vehiclesForSale.at(CarForSaleId);
+                const vehConfigInfo = this.config2[CarForSaleId];
                 //.! так как я уверен что в конфиге есть price (если в конфиге нет price то ts не даст компилировать)
                 const price = vehConfigInfo!.price;
                 if((currentPlayerDBData.money ?? 0) >= price){
@@ -113,13 +103,24 @@ export class CarShopServer{
 
             //this.vehicleDBService();
 
-        }
-        else{
-            chat.send(player, 'Произошла ошибка, нет цены у авто');
-            return;
-        }
+        
     }
- */
+
+    checkIsCarForSale(player: alt.Player){
+        const vehicle = player.vehicle;
+        if(vehicle === null){
+            throw new Error('Для покупки автомобиля нужно сидеть в автомобиле');
+/*             chat.send(player, 'Для покупки автомобиля нужно сидеть в автомобиле');
+            return; */
+        }
+        if(!vehicle.hasStreamSyncedMeta('CarForSaleId')){
+            throw new Error('Для покупки автомобиля нужно сидеть в автомобиле');
+/*             chat.send(player, 'Этот автомобиль не продается');
+            return; */
+        }
+        return vehicle;
+    }
+
     onMyVehsCommand(player:  alt.Player){
 
 

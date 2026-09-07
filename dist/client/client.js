@@ -307,39 +307,11 @@ class CarShopClient {
                 this.carShopVisuals.testDell(oldValue);
             }
         });
-        alt_client__WEBPACK_IMPORTED_MODULE_0__.onServer('carShop:createClientDemonstrationScene', (vehiclesForSale) => {
-            //this.carShopVisuals.createTextLabels(vehiclesForSale);
-            //this.#createVehiclesForSale(vehiclesForSale);
-        });
-    }
-    #createVehiclesForSale(config) {
-        /*         for (let index = 0; index < config.vehiclesForSale.length; index++) {
-                    const e = config.vehiclesForSale[index];
-                    const text = e.textCoords;
-                    const tColor = e.textColor;
-                    new alt.TextLabel(
-                        `${e.model}\n${e.price}`,
-                        `ChaletLondon`,
-                        100,
-                        1,
-                        new alt.Vector3(
-                            e.x + text.offsetX,
-                            e.y + text.offsetY,
-                            e.z + text.offsetZ
-                        ),
-                        new alt.Vector3( e.rx, e.ry, e.rz),
-                        new alt.RGBA(tColor.r, tColor.g, tColor.b, tColor.a),
-                        2,
-                        new alt.RGBA(tColor.r, tColor.g, tColor.b, tColor.a),
-                        true,
-                        text.distance
-                    );
-                } */
-        config.vehiclesForSale.forEach((e, index) => {
-            const text = e.textCoords;
-            const tColor = e.textColor;
-            new alt_client__WEBPACK_IMPORTED_MODULE_0__.TextLabel(`${e.model}\n${e.price}`, `ChaletLondon`, 100, 1, new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(e.x + text.offsetX, e.y + text.offsetY, e.z + text.offsetZ), new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(e.rx, e.ry, e.rz), new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(tColor.r, tColor.g, tColor.b, tColor.a), 2, new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(tColor.r, tColor.g, tColor.b, tColor.a), true, text.distance);
-        });
+        /*         alt.onServer('carShop:createClientDemonstrationScene', (vehiclesForSale) => {
+                    //this.carShopVisuals.createTextLabels(vehiclesForSale);
+                    //this.#createVehiclesForSale(vehiclesForSale);
+        
+                }); */
     }
     #allowCarPurchase(price, vehicle) {
     }

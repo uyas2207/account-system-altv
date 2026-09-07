@@ -62,7 +62,12 @@ export class CommandManager {
             }
         }); */
     
-        chat.registerCmd('buy', (player: alt.Player) => {
+        chat.registerCmd('buy', async (player: alt.Player) => {
+            try {
+                this.carShopServer.onCarPurchaseAttempt(player);
+            } catch (error) {
+                chat.send(player,'Произошла  ошибка:', error);
+            }
             //chat.send(player, 'test message with args:');
             //this.carShopServer.onCarPurchaseAttempt(player);
         });
@@ -75,19 +80,23 @@ export class CommandManager {
             console.log('login, password, repeatPassword', login, password, repeatPassword)
 
             if(login === undefined || password === undefined || repeatPassword === undefined){
-                console.log("/register <login> <password> <repeat-password>");
-                console.log("Не введены значения login, password или repeat-password");
+                chat.send(player,"/register <login> <password> <repeat-password>");
+                chat.send(player,"Не введены значения login, password или repeat-password");
                 return;
             }
-            this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+            try {
+                this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+            } catch (error) {
+                chat.send(player,'Произошла  ошибка:', error);
+            }
         });
         // login login password
         chat.registerCmd('login', (player: alt.Player, args: Array<string>) => {
             console.log('args[0], args[1]', args[0], args[1]);
             //chat.send(player, 'test message with args:');
             if(args[0] === undefined || args[1] === undefined){
-                console.log("/login <login> <password>");
-                console.log("Не введены значения password или login");
+                chat.send(player,"/login <login> <password>");
+                chat.send(player,"Не введены значения password или login");
                 return;
             }
             try {
@@ -99,7 +108,13 @@ export class CommandManager {
         });
         // myvehs
         chat.registerCmd('myvehs', (player: alt.Player) => {
+            try {
+                const currentPlayerAccountId = this.accoutManager.onAccountVehsAttempt(player);
 
+                this.carShopServer
+            } catch (error) {
+                
+            }
         });
         // register login password repeat-password
 

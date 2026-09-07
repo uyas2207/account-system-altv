@@ -1,6 +1,5 @@
 import * as alt from 'alt-client';
 
-import { IVehiclesConfig } from '@shared/types/IVehiclesConfig'
 import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig2'
 
 export class CarShopVisuals {
