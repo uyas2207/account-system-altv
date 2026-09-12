@@ -4,14 +4,14 @@ import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig2'
 export const vehiclesForSaleList: Array<IVehiclesForSaleList> = [
     {
         model: "adder",
-        customPrimaryColor: new alt.RGBA(alt.RGBA.red),
-        customSecondaryColor: new alt.RGBA(alt.RGBA.red),
+        primaryColor: 23,
+        secondaryColor: 42,
         price: 5000
     },
     {
         model: "benson",
-        customPrimaryColor: new alt.RGBA(alt.RGBA.green),
-        customSecondaryColor: new alt.RGBA(alt.RGBA.green),
+        primaryColor: 1,
+        secondaryColor:22,
         price: 10000
     }
 ]

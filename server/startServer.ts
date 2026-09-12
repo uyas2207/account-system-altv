@@ -3,13 +3,14 @@ import { Kysely } from 'kysely';
 
 import { db } from './database/database';
 import { Database } from './database/database';
-import { CommandManager } from './CommandManager'
-import { CarShopServer } from './CarShopServer'
-import { AccountManager } from './AccountManager'
+import { CommandManager } from './CommandManager';
+import { CarShopServer } from './CarShopServer';
+import { AccountManager } from './AccountManager';
+import { SpawnedVehsManager } from './SpawnedVehsManager';
 
-import { AccountDBService } from './DataBase classes/AccountDBService';
-import { VehicleDBService } from './DataBase classes/VehicletDBService';
-
+import { AccountDBService } from './DataBase_classes/AccountDBService';
+import { VehicleDBService } from './DataBase_classes/VehicletDBService';
+import { DBServiceManager } from "./DBServiceManager";
 
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 class StartServer {
@@ -17,25 +18,38 @@ class StartServer {
     //private readonly databaseService: DatabaseService;
     private readonly accountDBService: AccountDBService;
     private readonly vehicleDBService: VehicleDBService;
+    private readonly dbServiceManager: DBServiceManager;
+
     private readonly accoutManager: AccountManager;
     private readonly commandManager: CommandManager;
     private readonly carShopServer: CarShopServer;
-    
+    private readonly vehiclesManager: SpawnedVehsManager;
+
     //private readonly configManager: ConfigManager;
     constructor()
     {
-        console.log(vehiclesForSaleList)
+        this.vehiclesManager = new SpawnedVehsManager();
         //this.databaseService = new DatabaseService(db);
         this.accountDBService = new AccountDBService(db);
         this.vehicleDBService = new VehicleDBService(db);
+        this.dbServiceManager = new DBServiceManager(db);
         this.accoutManager = new AccountManager(this.accountDBService);
         this.carShopServer = new CarShopServer(/* vehiclesForSale */vehiclesForSaleList, this.vehicleDBService, this.accoutManager);
-        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer);
+        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer, this.vehiclesManager, this.dbServiceManager);
+
+        
         //this.configManager = new ConfigManager(vehiclesForSale);
         this.#init();
     }
 
-    #init(){
+    #init(){    // 0-160
+        alt.onClient('color1', (player: alt.Player, color:number) => {
+            player.vehicle!.primaryColor = color;
+        });
+
+        alt.onClient('color2', (player: alt.Player, color:number) => {
+            player.vehicle!.secondaryColor = color;
+        });
 
         alt.on('consoleCommand', async (command, args) => {
             if(command === 'aaa'){
@@ -57,16 +71,27 @@ class StartServer {
             if(command === 'testveh'){
                 this.vehicleDBService.insertNewRow({
                     ownerId: 1,
-                    model: 123,
-                    mainColour: { "r": 0, "g": 255, "b": 0, "a": 255  },
-                    secondaryColour: { "r": 0, "g": 255, "b": 0, "a": 255 },
+                    model: 'adder',
+                    primaryColor: 22,
+                    secondaryColor: 133,
                     price: 5000
                 });
             }
+/*             if(command === 'rgba'){
+                const data = await this.vehicleDBService.getRowByPrimaryKey(4);
+                if(!data) return;
+                console.log("из бд",data.primaryColor);
+                console.log("руками", new alt.RGBA(alt.RGBA.black));
+                const veh = new alt.Vehicle('adder', -1275.78, -1434.56, 4.54, 0, 0, 0.56621);
+                veh.secondaryColor = data.primaryColor;
+                console.log(veh.secondaryColor);
+            } */
             if(command === "addn"){
-                this.vehicleDBService.updateRowRegistrationNumberByPrimaryKey(13, "A123AA_99");
+                this.vehicleDBService.updateRegistrationNumberByPrimaryKey(13, "A123AA_99");
             }
-
+            if(command === "info"){
+                this.vehiclesManager.printAllSpawnedVehicles();
+            }
             if(command === 'delltest'){
                 if (args[0] !== undefined){
                     const id = Number (args[0]);
@@ -74,7 +99,16 @@ class StartServer {
                     entity?.deleteStreamSyncedMeta('CarForSaleId');
                 }
             }
-
+            if(command === "sp"){
+                if (args[0] !== undefined){
+                    const id = Number (args[0]);
+                    const vehData = await this.vehicleDBService.getRowByPrimaryKey(id);
+                    if(vehData){
+                        const player = alt.Player.getByID(1);
+                        this.vehiclesManager.spawnVehicle(player!, vehData);
+                    }
+                }
+            }
         });
 /*             const result = VEHICLE_MODELS.includes('benson');
             console.log('result', result); */
@@ -106,15 +140,15 @@ class StartServer {
             if(command === 'testAddVehicle'){
                 const ownerId = Number (args[0] ?? null);
                 const model = String (args[1] ?? null);
-                const mainColour = String (args[2] ?? null);
-                const secondaryColour = String (args[3] ?? null);
+                const primaryColor = String (args[2] ?? null);
+                const secondaryColor = String (args[3] ?? null);
                 const registrationNumber = String (args[5] ?? 'empty');
                 
-                if (!ownerId || !model || !mainColour || !secondaryColour){
+                if (!ownerId || !model || !primaryColor || !secondaryColor){
                     console.log('Некорректные данные');
                     return;
                 }
-                this.databaseService.testAddVehicle(ownerId, model, mainColour, secondaryColour, registrationNumber);
+                this.databaseService.testAddVehicle(ownerId, model, primaryColor, secondaryColor, registrationNumber);
             }
         }); */
     

@@ -4,8 +4,8 @@
             "model": "adder",
             "x": -1653.32, "y": -3182.40, "z": 13.98, "rx": 0.0, "ry": 0.0, "rz": -0.54,
             "colorData": {
-                "customPrimaryColor": { "r": 0, "g": 0, "b": 255, "a": 255 },
-                "customSecondaryColor": { "r": 0, "g": 0, "b": 255, "a": 255 }
+                "primaryColor": { "r": 0, "g": 0, "b": 255, "a": 255 },
+                "secondaryColor": { "r": 0, "g": 0, "b": 255, "a": 255 }
             },
             "textCoords": { "offsetX": 0.0, "offsetY": 0.0, "offsetZ": 1.2, "distance": 15 },
             "textColor": {"r": 0, "g": 0, "b": 255, "a": 255},
@@ -15,8 +15,8 @@
             "model": "benson",
             "x": -1641.80, "y": -3173.96, "z": 13.9, "rx": 0.0, "ry": 0.0, "rz": 0.99,
             "colorData": {
-                "customPrimaryColor": { "r": 0, "g": 255, "b": 0, "a": 255 },
-                "customSecondaryColor": { "r": 0, "g": 255, "b": 0, "a": 255 }
+                "primaryColor": { "r": 0, "g": 255, "b": 0, "a": 255 },
+                "secondaryColor": { "r": 0, "g": 255, "b": 0, "a": 255 }
             },
             "textCoords": { "offsetX": -3.5, "offsetY": 2.55, "offsetZ": 1.2, "distance": 15 },
             "textColor": {"r": 0, "g": 255, "b": 0, "a": 255},

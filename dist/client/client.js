@@ -1,5 +1,4 @@
 import * as __WEBPACK_EXTERNAL_MODULE_alt_client_680395b4__ from "alt-client";
-import * as __WEBPACK_EXTERNAL_MODULE_alt_shared_5f1c9f48__ from "alt-shared";
 import * as __WEBPACK_EXTERNAL_MODULE_natives__ from "natives";
 /******/ var __webpack_modules__ = ({
 
@@ -26,10 +25,10 @@ class CarShopVisuals {
         this.priceTextLabels.set(index, label);
         alt_client__WEBPACK_IMPORTED_MODULE_0__.logDebug('Создан labex:', index);
     }
-    testDell(index) {
+    destroyLabel(index) {
         if (this.priceTextLabels.has(index)) {
             const label = this.priceTextLabels.get(index);
-            label.destroy();
+            label?.destroy();
             this.priceTextLabels.delete(index);
             alt_client__WEBPACK_IMPORTED_MODULE_0__.logDebug('Удален labex:', index);
         }
@@ -92,19 +91,17 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   vehiclesForSaleList: () => (/* binding */ vehiclesForSaleList)
 /* harmony export */ });
-/* harmony import */ var alt_shared__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-shared */ "alt-shared");
-
 const vehiclesForSaleList = [
     {
         model: "adder",
-        customPrimaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.red),
-        customSecondaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.red),
+        primaryColor: 23,
+        secondaryColor: 42,
         price: 5000
     },
     {
         model: "benson",
-        customPrimaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.green),
-        customSecondaryColor: new alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_shared__WEBPACK_IMPORTED_MODULE_0__.RGBA.green),
+        primaryColor: 1,
+        secondaryColor: 22,
         price: 10000
     }
 ];
@@ -119,16 +116,6 @@ const vehiclesForSaleList = [
 (module) {
 
 module.exports = __WEBPACK_EXTERNAL_MODULE_alt_client_680395b4__;
-
-/***/ },
-
-/***/ "alt-shared"
-/*!*****************************!*\
-  !*** external "alt-shared" ***!
-  \*****************************/
-(module) {
-
-module.exports = __WEBPACK_EXTERNAL_MODULE_alt_shared_5f1c9f48__;
 
 /***/ },
 
@@ -244,8 +231,16 @@ class CarShopClient {
     }
     #init() {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('consoleCommand', async (command, ...arg) => {
+            if (command === "color1") {
+                const a = Number(arg[0]);
+                alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer("color1", a);
+            }
+            if (command === "color2") {
+                const a = Number(arg[0]);
+                alt_client__WEBPACK_IMPORTED_MODULE_0__.emitServer("color2", a);
+            }
             if (command === 'del') {
-                this.carShopVisuals.testDell(Number(arg[0]));
+                this.carShopVisuals.destroyLabel(Number(arg[0]));
             }
             if (command === 'vehinfo') {
                 const entity = alt_client__WEBPACK_IMPORTED_MODULE_0__.Player.local.vehicle;
@@ -287,7 +282,7 @@ class CarShopClient {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on("gameEntityDestroy", async (entity) => {
             if (entity.hasStreamSyncedMeta('CarForSaleId')) {
                 const index = entity.getStreamSyncedMeta('CarForSaleId');
-                this.carShopVisuals.testDell(index);
+                this.carShopVisuals.destroyLabel(index);
             }
         });
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('startEnteringVehicle', (vehicle, seat, player) => {
@@ -304,7 +299,7 @@ class CarShopClient {
                 natives__WEBPACK_IMPORTED_MODULE_1__["default"].freezeEntityPosition(entity.scriptID, false);
                 natives__WEBPACK_IMPORTED_MODULE_1__["default"].setVehicleUndriveable(entity.scriptID, false);
                 natives__WEBPACK_IMPORTED_MODULE_1__["default"].setEntityCanBeDamaged(entity.scriptID, true);
-                this.carShopVisuals.testDell(oldValue);
+                this.carShopVisuals.destroyLabel(oldValue);
             }
         });
         /*         alt.onServer('carShop:createClientDemonstrationScene', (vehiclesForSale) => {

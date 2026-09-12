@@ -18,8 +18,17 @@ class CarShopClient {
     #init(){
         alt.on('consoleCommand', async (command, ...arg) => {
 
+            if(command === "color1"){
+                const a = Number(arg[0]);
+                alt.emitServer("color1", a);
+            }
+            if(command === "color2"){
+                const a = Number(arg[0]);
+                alt.emitServer("color2", a);
+            }
+
             if(command === 'del'){
-                this.carShopVisuals.testDell(Number(arg[0]));
+                this.carShopVisuals.destroyLabel(Number(arg[0]));
             }
 
             if(command === 'vehinfo'){
@@ -68,7 +77,7 @@ class CarShopClient {
         alt.on("gameEntityDestroy", async (entity) => {
             if(entity.hasStreamSyncedMeta('CarForSaleId')){
                 const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
-                this.carShopVisuals.testDell(index);
+                this.carShopVisuals.destroyLabel(index);
             }
         });
 
@@ -87,7 +96,7 @@ class CarShopClient {
                 native.freezeEntityPosition(entity.scriptID, false);
                 native.setVehicleUndriveable(entity.scriptID, false);
                 native.setEntityCanBeDamaged(entity.scriptID, true);
-                this.carShopVisuals.testDell(oldValue);
+                this.carShopVisuals.destroyLabel(oldValue);
             }
         });
 

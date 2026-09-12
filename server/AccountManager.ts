@@ -1,6 +1,6 @@
 import * as alt from 'alt-server';
 
-import { AccountDBService } from './DataBase classes/AccountDBService';
+import { AccountDBService } from './DataBase_classes/AccountDBService';
 
 interface IPlayerSession {
     accountId: number;
@@ -25,7 +25,7 @@ export class AccountManager {
         }
 
         const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
-currentPlayerDBData?.accountId
+        
         if( (currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)){
             throw new Error('Введен некорректный логин или пароль');
         }
@@ -61,7 +61,7 @@ currentPlayerDBData?.accountId
     }
 
     async requestPlayerDBData(player: alt.Player){
-        if(!this.allLoginnedPlayers.has(player)){
+/*         if(!this.allLoginnedPlayers.has(player)){
             throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
         }
 
@@ -69,7 +69,12 @@ currentPlayerDBData?.accountId
         //Почему то ts жалуется на то что currentPlayer.accountId может быть undefined, хотя была проверка на allLoginnedPlayers.has 
         //и после этого взят currentPlayer, а currentPlayer не может существовать без accountId и без login 
         //и что бы ts не выдавал ошибку на ситуацию которой не должно быть сделал currentPlayer!.accountId
-        const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayer!.accountId);
+        const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayer!.accountId); */
+        const currentPlayerAccountId = this.requestPlayerAccountId(player);
+        const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayerAccountId!);
+        if(!currentPlayerDBData){
+            throw new Error('Не удалось получить данные об игроке');
+        }
         return currentPlayerDBData;
     }
 
@@ -77,19 +82,23 @@ currentPlayerDBData?.accountId
         if(!this.allLoginnedPlayers.has(player)){
             throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
         }
-        return this.allLoginnedPlayers.get(player)?.accountId;
+        const currentPlayerAccountId = this.allLoginnedPlayers.get(player)?.accountId;
+        if(!currentPlayerAccountId){
+            throw new Error('Не удалось получить игрока с таким ID');
+        }
+        return currentPlayerAccountId;
     }
 
     async changePlayerMoney(accountId: number, money: number){
         try {
-            await this.accountDBService.updateRowMoneyByPrimaryKey(accountId, money);
+            await this.accountDBService.updateMoneyByPrimaryKey(accountId, money);
         } catch (error) {
             
         }
     }
 
     checkIsPlayerLoggedIn(player: alt.Player){
-       this.allLoginnedPlayers.has(player);
+       return this.allLoginnedPlayers.has(player);
     }
 
     //дебаг команда, команда потом убрать

@@ -16,8 +16,8 @@ export interface IColorRGBA {
 }
 
 export interface IColorData {
-    customPrimaryColor: IColorRGBA;
-    customSecondaryColor: IColorRGBA;
+    primaryColor: IColorRGBA;
+    secondaryColor: IColorRGBA;
 }
 
 export interface ItextCoords {

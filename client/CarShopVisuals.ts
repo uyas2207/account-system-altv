@@ -27,10 +27,10 @@ export class CarShopVisuals {
         alt.logDebug('Создан labex:', index);
     }
 
-    testDell(index: number){
+    destroyLabel(index: number){
         if(this.priceTextLabels.has(index)){
             const label = this.priceTextLabels.get(index)
-            label!.destroy();
+            label?.destroy();
             this.priceTextLabels.delete(index);
             alt.logDebug('Удален labex:', index);
         }
