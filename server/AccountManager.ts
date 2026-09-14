@@ -1,4 +1,6 @@
 import * as alt from 'alt-server';
+import { defaultParameters } from './config/VehConfig'
+import { Account } from './database/database'
 
 import { AccountDBService } from './DataBase_classes/AccountDBService';
 
@@ -12,21 +14,20 @@ export class AccountManager {
     private allLoginnedPlayers: Map <alt.Player, IPlayerSession> = new Map <alt.Player, IPlayerSession>();
     
     constructor( private readonly accountDBService: AccountDBService){
-        //this.test();
     }
 
-    async onAccountEnterAttempt(player: alt.Player, playerLogin: string, playerPassword: string){
+    async onAccountEnterAttempt(player: alt.Player, playerLogin: string, playerPassword: string): Promise<void> {
         
         if(this.allLoginnedPlayers.has(player)){
-            throw new Error('Вы уже вошли в аккаунт');
+            throw new Error('Вы уже находитесь в аккаунте');
         }
         if(this.allLoginnedPlayers.values().some(session => session.login === playerLogin)){
             throw new Error('Данный аккаунт уже используется');
         }
 
-        const currentPlayerDBData = await this.accountDBService.checkAccountLogin(playerLogin);
+        const currentPlayerDBData = await this.accountDBService.getDataByAccountLogin(playerLogin);
         
-        if( (currentPlayerDBData === undefined) || (currentPlayerDBData.password !== playerPassword)){
+        if( (!currentPlayerDBData) || (currentPlayerDBData.password !== playerPassword)){
             throw new Error('Введен некорректный логин или пароль');
         }
         
@@ -36,40 +37,26 @@ export class AccountManager {
         });
     }
 
-    async onAccountRegisterAttempt(player: alt.Player, playerLogin: string, playerPassword: string, playerRepeatPassword: string){
-        if( await this.accountDBService.checkAccountLogin(playerLogin) !== undefined){
+    async onAccountRegisterAttempt(player: alt.Player, playerLogin: string, playerPassword: string, playerRepeatPassword: string): Promise<void> {
+        if( await this.accountDBService.getDataByAccountLogin(playerLogin) !== undefined){
             throw new Error('Данный логин не достпуен');
         }
-        if(playerPassword !== playerRepeatPassword){
+        if(playerPassword !== playerRepeatPassword) {
             throw new Error('Пароли на совпадают');
         }
 
-       // try {
-        await this.accountDBService.insertNewRow({login: playerLogin, password: playerPassword, money: 10000 /* не забыть вынести в конфиг */});
+        await this.accountDBService.insertNewRow({login: playerLogin, password: playerPassword, money: defaultParameters.defaultAccountMoney});
         //автоматичский вход в аккаунт если игрок только что зарегестрировался
-        this.onAccountEnterAttempt(player, playerLogin, playerPassword);
-
- //       } catch (error) {
-   //         throw new Error('Произошла ошибка при добавлении аккаунта в базу данных');
-     //   }
+        await this.onAccountEnterAttempt(player, playerLogin, playerPassword);
     }
 
-    onAccountVehsAttempt(player: alt.Player){
+    onAccountVehsAttempt(player: alt.Player): number {
         const currentPlayerAccountId = this.requestPlayerAccountId(player);
         console.log("currentPlayerAccountId",currentPlayerAccountId)
         return currentPlayerAccountId;
     }
 
-    async requestPlayerDBData(player: alt.Player){
-/*         if(!this.allLoginnedPlayers.has(player)){
-            throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
-        }
-
-        const currentPlayer = this.allLoginnedPlayers.get(player);
-        //Почему то ts жалуется на то что currentPlayer.accountId может быть undefined, хотя была проверка на allLoginnedPlayers.has 
-        //и после этого взят currentPlayer, а currentPlayer не может существовать без accountId и без login 
-        //и что бы ts не выдавал ошибку на ситуацию которой не должно быть сделал currentPlayer!.accountId
-        const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayer!.accountId); */
+    async requestPlayerDBData(player: alt.Player): Promise<Account | undefined> {
         const currentPlayerAccountId = this.requestPlayerAccountId(player);
         const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayerAccountId!);
         if(!currentPlayerDBData){
@@ -78,7 +65,7 @@ export class AccountManager {
         return currentPlayerDBData;
     }
 
-    requestPlayerAccountId(player: alt.Player){
+    requestPlayerAccountId(player: alt.Player): number {
         if(!this.allLoginnedPlayers.has(player)){
             throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
         }
@@ -89,20 +76,19 @@ export class AccountManager {
         return currentPlayerAccountId;
     }
 
-    async changePlayerMoney(accountId: number, money: number){
-        try {
-            await this.accountDBService.updateMoneyByPrimaryKey(accountId, money);
-        } catch (error) {
-            
-        }
-    }
-
-    checkIsPlayerLoggedIn(player: alt.Player){
+    checkIsPlayerLoggedIn(player: alt.Player): boolean {
        return this.allLoginnedPlayers.has(player);
     }
 
+    accountExit(player: alt.Player): void {
+        if(!this.checkIsPlayerLoggedIn(player)){
+            return;
+        }
+        this.allLoginnedPlayers.delete(player);     
+    }
+
     //дебаг команда, команда потом убрать
-    printAllLoginnedPlayers(){
+    printAllLoginnedPlayers(): void {
         alt.log('Весь allLoginnedPlayers');
         this.allLoginnedPlayers.forEach((value, key) => {
             alt.log(`Ключ: ${(key)}`);

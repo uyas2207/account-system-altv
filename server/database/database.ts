@@ -2,17 +2,20 @@ import { Selectable, Generated, Kysely, MysqlDialect, Updateable } from 'kysely'
 import { createPool } from 'mysql2';
 
 export interface Database {
-    account: Account;
+    account: AccountTable;
     vehicles: VehiclesTable;
 }
 
-export interface Account {
+export interface AccountTable {
     accountId: Generated<number>;
     login: string;
     password: string;
     registrationDate: Generated<Date>;
     money: number;
 }
+
+export type Account = Selectable<AccountTable>;
+//export type AccountUpdate = Updateable<AccountTable>;
 /*
 CREATE TABLE account (
     accountId INT AUTO_INCREMENT PRIMARY KEY,

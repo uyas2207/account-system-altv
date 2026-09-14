@@ -1,122 +1,101 @@
 import * as alt from 'alt-server';
 const chat = require('alt:chat'); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
+import { defaultParameters } from "./config/VehConfig";
 
-/* import { DatabaseService } from './DatabaseService' */
 import { CarShopServer } from './CarShopServer'
 import { AccountManager } from './AccountManager'
 import { SpawnedVehsManager } from './SpawnedVehsManager'
 
-import { AccountDBService } from './DataBase_classes/AccountDBService';
-import { VehicleDBService } from './DataBase_classes/VehicletDBService';
-import { DBServiceManager } from './DBServiceManager';
+import { DBTransactionManager } from './DataBase_classes/DBTransactionManager';
+
+
+interface IVehData {
+    accountId: number;
+    model: string;
+    price: number;
+    vehOwnerId: number;
+    vehId: number;
+}
+
 
 export class CommandManager {
     constructor(
         private readonly accoutManager: AccountManager, 
         private readonly carShopServer: CarShopServer,
         private readonly vehiclesManager: SpawnedVehsManager,
-        private readonly dbServiceManager: DBServiceManager
+        private readonly DBTransactionManager: DBTransactionManager
         
     ){
-        this.#init();
+        this._registerCommands();
     }
 
-    #init(){
-    
+    private _registerCommands(): void {
+
         chat.registerCmd('buy', async (player: alt.Player) => {
             try {
-                const requestPlayerAccountId = this.accoutManager.requestPlayerAccountId(player);
-                const veh = this.carShopServer.checkIsCarForSale(player);
-                const model = alt.getVehicleModelInfoByHash(veh.model)
-                const price = this.carShopServer.findVehPriceInConfig((model.title).toLowerCase());
-                if(!price){
-                    alt.logError("Попытка купить машину которой нет в конфиге model:", model);
-                    throw new Error("Не удалось купить машину");
-                }
-                const vehDBId = await this.dbServiceManager.transaction(async (trx) => {
-                    const currentPlayerMoney = await this.dbServiceManager.account.getMoneyByPrimaryKey(requestPlayerAccountId, trx);
-                    if (typeof currentPlayerMoney !== "number") {
-                        throw new Error(`Игрок с ID ${requestPlayerAccountId} не найден в базе данных`);
-                    }
-                    const money = currentPlayerMoney ?? 0;
-                    if(money < price){
-                        throw new Error("На аккаунте недостаточно денег");
-                    }
-
-                    const moneyAfterOperation = money - price;
-                    await this.dbServiceManager.account.updateMoneyByPrimaryKey(requestPlayerAccountId, moneyAfterOperation, trx);
-                    
-                    const result = await this.dbServiceManager.vehicle.insertNewRow({
-                        ownerId: requestPlayerAccountId,
-                        model: model.title,
-                        primaryColor: veh.primaryColor,
-                        secondaryColor: veh.secondaryColor,
-                        price: price
-                    }, trx);
-
-                    return result;
-                });
-                if(vehDBId){
-                    const id = Number(vehDBId[0]!.insertId);
-                    this.vehiclesManager.addVehicle(id, veh, requestPlayerAccountId, false);
-                }
-                chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
-                veh.deleteStreamSyncedMeta('CarForSaleId');
+                const veh = this._checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+                await this._onCarPurchaseAttempt(player, veh);
             } catch (error) {
                 if(error instanceof Error){
-                    chat.send(player, `Произошла  ошибка: ${error.message}`);
+                    chat.send(player, ` ${error.message}`);
                 }
             }
         });
+
+        chat.registerCmd('sell', async (player: alt.Player) => {
+            try{
+                const veh = this._checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+                await this._onCarSellAttempt(player, veh);
+            }
+            catch(error){
+                if(error instanceof Error){
+                    chat.send(player, ` ${error.message}`);
+                }
+            }
+        });
+
         // register login password repeat-password
-        chat.registerCmd('register', (player: alt.Player, args: Array<string>) => {
+        chat.registerCmd('register', async (player: alt.Player, args: Array<string>) => {
             const login = args[0]
             const password = args[1];
             const repeatPassword = args[2];
 
-            console.log('login, password, repeatPassword', login, password, repeatPassword)
-
-            if(login === undefined || password === undefined || repeatPassword === undefined){
+            if(!login || !password || !repeatPassword){
                 chat.send(player,"/register <login> <password> <repeat-password>");
                 chat.send(player,"Не введены значения login, password или repeat-password");
                 return;
             }
             try {
-                this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+                await this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
+                chat.send(player,`Вы успешно зарегистрировались и вошли в аккаунт с логином ${login}`);
             } catch (error) {
-                chat.send(player,'Произошла  ошибка:', error);
+                chat.send(player, `${error}`);
             }
         });
         // login login password
-        chat.registerCmd('login', (player: alt.Player, args: Array<string>) => {
-            //chat.send(player, 'test message with args:');
-            if(args[0] === undefined || args[1] === undefined){
+        chat.registerCmd('login', async (player: alt.Player, args: Array<string>) => {
+            if(!args[0] || !args[1]){
                 chat.send(player,"/login <login> <password>");
                 chat.send(player,"Не введены значения password или login");
                 return;
             }
             try {
-                this.accoutManager.onAccountEnterAttempt(player, args[0], args[1]);
+                await this.accoutManager.onAccountEnterAttempt(player, args[0], args[1]);
                 chat.send(player,'Вы успешно вошли в аккаунт');
             } catch (error) {
-                chat.send(player,'Произошла  ошибка:', error);
+                chat.send(player, `${error}`);
             }
         });
         // myvehs
         chat.registerCmd('myvehs', async (player: alt.Player) => {
             try {
                 const allCurrentPlayerVehs = await this.carShopServer.requestVehsByPlayer(player);
-                console.log("allCurrentPlayerVehs", allCurrentPlayerVehs);
                 allCurrentPlayerVehs.forEach(element => {
-/*                     const IVehicleModel = (element.model);
-                    const model = IVehicleModel; */
                     const model = element.model;
-                    console.log(`${model} (${model}) - ID: ${element.vehId}`);
-                    chat.send(player, `${model} (${model}) - ID: ${element.vehId}`);
+                    chat.send(player, `${model} (${model.toLowerCase()}) - ID: ${element.vehId}`);
                 });
-                //chat.send(player,'');
             } catch (error) {
-                chat.send(player,'Произошла  ошибка:', error);
+                chat.send(player, `${error}`);
             }
         });
         //spawnveh ID
@@ -128,27 +107,10 @@ export class CommandManager {
             }
             
             try {
-                const allCurrentPlayerVehs = await this.carShopServer.requestVehsByPlayer(player);
-                const allVehIds = allCurrentPlayerVehs.map(playerVeh => playerVeh.vehId);
-                const id = Number(args[0]);
-                if(!(allVehIds.includes(id))){
-                    throw new Error(`У вас нет авто с id ${id}`);
-                }
-                const vehData = allCurrentPlayerVehs.find(playerVeh => playerVeh.vehId === id);
-                const result = this.vehiclesManager.checkAllSpawnedVehicles(vehData!.vehId);
-                if(!result){
-                    this.vehiclesManager.spawnVehicle(player, vehData!);
-                    chat.send(player, "Машина успешно заспавнена");
-                }
-                else{
-                    result.pos = player.pos;
-                    chat.send(player, "Машина успешно телпортирована");
-                }
+                await this._onSpawnVehicleAttempt(player, args[0]);
             } catch (error) {
-                chat.send(player,`Произошла  ошибка: ${error}`);
+                chat.send(player,` ${error}`);
             }
-
-            //this.carShopServer.onSpawnvehAttempt();
         });
         //color color1 color2
         chat.registerCmd('color', async (player: alt.Player, args: Array<string>) => {
@@ -159,20 +121,16 @@ export class CommandManager {
             }
             const color1 = Number(args[0]);
             const color2 = Number(args[1]);
-            if(!this.isValidColorNumber(color1) || !this.isValidColorNumber(color2)){
+            if(!this._isValidColorNumber(color1) || !this._isValidColorNumber(color2)){
                 chat.send(player, "/color <color1> <color2>");
                 chat.send(player, "Цветом может быть только целое число от 0 до 160");
                 return;
             }
-            if(!player.vehicle){
-                chat.send(player, "Для использования команды необходимо находитсья в машине");
-                return;
-            }
             try {
-                const veh = player.vehicle;
-                const currentPlayerAccountId = this.accoutManager.requestPlayerAccountId(player);
+                const veh = this._checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+                const accountId = this.accoutManager.requestPlayerAccountId(player);
                 const ownerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
-                if(ownerId === currentPlayerAccountId){
+                if(ownerId === accountId){
                     veh.primaryColor = color1;
                     veh.secondaryColor = color2;
                     const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
@@ -182,69 +140,119 @@ export class CommandManager {
                     chat.send(player, "Вы не являетесь владельцем авто");
                 }
             } catch (error) {
-                chat.send(player,`Произошла  ошибка: ${error}`);
+                chat.send(player,` ${error}`);
             }
         });
 
-        chat.registerCmd('sell', async (player: alt.Player) => {
-            if(!player.vehicle){
-                chat.send(player, "Для использования команды необходимо находитсья в машине");
-                return;
-            }
-
-            try{
-                const veh = player.vehicle;
-                const currentPlayerAccountId = this.accoutManager.requestPlayerAccountId(player);
-                const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
-                if(vehOwnerId !== currentPlayerAccountId){
-                    throw new Error ("Вы не являетесь владельцем авто");
-                }
-                const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
-                const model = alt.getVehicleModelInfoByHash(veh.model);
-                const price = this.carShopServer.findVehPriceInConfig(model.title);
-                if (!price){
-                    alt.logError("Попытка продать машину которой нет в конфиге model:", model);
-                    throw new Error("Машину данной модели нельзя продать");
-                }
-                if(!currentPlayerAccountId || !vehOwnerId || !vehId){
-                    alt.logError(`Не хватает данных currentPlayerAccountId: ${currentPlayerAccountId}, vehOwnerId: ${vehOwnerId}, vehId: ${vehId}`);
-                    throw new Error("Произошла непредвиденная ошибка");
-                }
-                await this.dbServiceManager.transaction(async (trx) => {
-                    const currentPlayerMoney = await this.dbServiceManager.account.getMoneyByPrimaryKey(currentPlayerAccountId, trx);
-                    if(typeof currentPlayerMoney !== "number"){
-                        throw new Error("Не удалось получить кол-во денег на аккаунте");
-                    }
-                    const resultMoney = currentPlayerMoney + price;
-                    await this.dbServiceManager.vehicle.deleteRowByPrimaryKey(vehId, trx);
-                    await this.dbServiceManager.account.updateMoneyByPrimaryKey(currentPlayerAccountId, resultMoney, trx);
-                });
-                this.vehiclesManager.checkVehicleBeforeDestroy(veh);
-            }
-            catch(error){
-                if(error instanceof Error){
-                    chat.send(player, `Произошла  ошибка: ${error.message}`);
-                }
-            }
+        chat.registerCmd('logout', (player: alt.Player) => {
+            this.accoutManager.accountExit(player);
         });
-
-        chat.registerCmd('inf', async (player: alt.Player) => {
-            this.vehiclesManager.printAllSpawnedVehicles();
-        });
-        // register login password repeat-password
-
-/*         chat.registerCmd('login', (player: alt.Player, login:string, password:string) => {
-            //chat.send(player, 'test message with args:');
-            try {
-                this.databaseService.accountEnter(player, login, password);
-            } catch (error) {
-                chat.send('Произошла  ошибка:', error);
-            }
-            chat.send(player, 'Вы успешно вошли в аккаунт');
-        }); */
     }
 
-    isValidColorNumber(num: number){
+    private async _onSpawnVehicleAttempt(player: alt.Player, arg: string): Promise<void> {
+        const allCurrentPlayerVehs = await this.carShopServer.requestVehsByPlayer(player);
+        const allVehIds = allCurrentPlayerVehs.map(playerVeh => playerVeh.vehId);
+        const id = Number(arg);
+        if(!(allVehIds.includes(id))){
+            throw new Error("У вас нет авто стаким id");
+        }
+        const vehData = allCurrentPlayerVehs.find(playerVeh => playerVeh.vehId === id);
+        if(!vehData){
+            throw new Error("Не удалось получить необходимые данные об авто");
+        }
+        const result = this.vehiclesManager.checkAllSpawnedVehicles(vehData.vehId);
+        if(!result){
+            this.vehiclesManager.spawnVehicle(player, vehData!);
+            chat.send(player, "Машина успешно заспавнена");
+        }
+        else{
+            result.pos = player.pos;
+            chat.send(player, "Машина успешно телпортирована");
+        }
+    }
+
+    private async _onCarPurchaseAttempt(player: alt.Player, veh: alt.Vehicle): Promise<void>{
+        this.carShopServer.checkIsCarForSale(player);
+        const data = this._getPlayerVehData(player, veh);
+        
+        const vehDBId = await this.DBTransactionManager.transaction(async (trx) => {
+            const playerMoney = await this.DBTransactionManager.account.getMoneyByPrimaryKey(data.accountId, trx);
+            if (typeof playerMoney !== "number") {
+                throw new Error(`Игрок с ID ${data.accountId} не найден в базе данных`);
+            }
+            if(playerMoney < data.price){
+                throw new Error("На аккаунте недостаточно денег");
+            }
+
+            const moneyAfterOperation = playerMoney - data.price;
+            await this.DBTransactionManager.account.updateMoneyByPrimaryKey(data.accountId, moneyAfterOperation, trx);
+            
+            const result = await this.DBTransactionManager.vehicle.insertNewRow({
+                ownerId: data.accountId,
+                model: data.model,
+                primaryColor: veh.primaryColor,
+                secondaryColor: veh.secondaryColor,
+                price: data.price
+            }, trx);
+
+            return result;
+        });
+        if(vehDBId) {
+            const id = Number(vehDBId[0]!.insertId);
+            this.vehiclesManager.addVehicle(id, veh, data.accountId, false);
+        }
+        chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
+        veh.deleteStreamSyncedMeta('CarForSaleId');
+    }
+    
+    private async _onCarSellAttempt(player: alt.Player, veh: alt.Vehicle): Promise<void>{
+        const data = this._getPlayerVehData(player, veh);
+        
+        if(data.vehOwnerId !== data.accountId){
+            throw new Error ("Вы не являетесь владельцем авто");
+        }
+        if(!data.vehOwnerId || !data.vehId){
+            alt.logError(`Не хватает данных, vehOwnerId: ${data.vehOwnerId}, vehId: ${data.vehId}`);
+            throw new Error("Произошла непредвиденная ошибка");
+        }
+
+        await this.DBTransactionManager.transaction(async (trx) => {
+            const currentPlayerMoney = await this.DBTransactionManager.account.getMoneyByPrimaryKey(data.accountId, trx);
+            if(typeof currentPlayerMoney !== "number"){
+                throw new Error("Не удалось получить кол-во денег на аккаунте");
+            }
+            const resultMoney = Math.trunc(currentPlayerMoney + (data.price * defaultParameters.percentageForSell));
+            await this.DBTransactionManager.vehicle.deleteRowByPrimaryKey(data.vehId, trx);
+            await this.DBTransactionManager.account.updateMoneyByPrimaryKey(data.accountId, resultMoney, trx);
+        });
+        this.vehiclesManager.checkVehicleBeforeDestroy(veh);
+    }
+
+    //как правильно использовать метод _getPlayerVehData что бы он возвращал только нужные данные 
+    private _getPlayerVehData(player: alt.Player, veh: alt.Vehicle): IVehData{
+        const accountId = this.accoutManager.requestPlayerAccountId(player);
+        const model = (alt.getVehicleModelInfoByHash(veh.model).title);
+        const price = this.carShopServer.findVehPriceInConfig(model);
+        const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh) ?? 0;
+        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh) ?? 0;
+        //пытался вынести проверку в findVehPriceInConfig, но тс выдавал ошибку поэтому проверка тут
+        if(!price){
+            alt.logError("Попытка купить машину которой нет в конфиге model:", model);
+            throw new Error("Не удалось купить машину");  
+        }
+        return({ accountId, model, price, vehOwnerId, vehId });
+    }
+    //ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+    //для проверки что цвет число и входит в список цветов altv
+    private _isValidColorNumber(num: number): boolean {
         return Number.isInteger(num) && num >= 0 && num < 161;
+    }
+    //если игрок не в авто Error, если в авто вернет player.vehicle
+    private _checkIsPlayerInVehicle(player: alt.Player): alt.Vehicle {
+        const veh = player.vehicle;
+        if(!veh){
+            throw new Error("Для использования команды необходимо находитсья в машине");
+        }
+        return veh;
     }
 }

@@ -1,6 +1,5 @@
-import { Kysely, Insertable, Transaction, Selectable } from 'kysely';
-import { Database } from '../database/database';
-import { Account } from '../database/database'
+import { Kysely, Insertable, Transaction, DeleteResult, InsertResult, UpdateResult } from 'kysely';
+import { Database, AccountTable, Account } from '../database/database'
 
 export class AccountDBService {
     protected readonly _db: Kysely<Database>
@@ -11,26 +10,26 @@ export class AccountDBService {
         //accountId
     }
 
-    async getRowByPrimaryKey(primaryKeyValue: Selectable<Database['account']>['accountId'], trx?: Transaction<Database>){
+    async getRowByPrimaryKey(primaryKeyValue: Account['accountId'], trx?: Transaction<Database>): Promise<Account | undefined> {
         const executor = trx || this._db;
         return await executor
             .selectFrom('account').where(('accountId'), '=', primaryKeyValue).selectAll().executeTakeFirst();
     }
 
-    async deleteRowByPrimaryKey(primaryKeyValue: number, trx?: Transaction<Database>){
+    async deleteRowByPrimaryKey(primaryKeyValue: number, trx?: Transaction<Database>): Promise<DeleteResult> {
         const executor = trx || this._db;
         return await executor
             .deleteFrom('account').where('accountId', '=', primaryKeyValue).executeTakeFirst();
     }
 
-    async getMoneyByPrimaryKey(primaryKeyValue: number, trx?: Transaction<Database>){
+    async getMoneyByPrimaryKey(primaryKeyValue: number, trx?: Transaction<Database>): Promise<number | undefined> {
         const executor = trx || this._db;
         const result = await executor
             .selectFrom('account').where(('accountId'), '=', primaryKeyValue).selectAll().executeTakeFirst();
         return result?.money;
     }
 
-    async updateMoneyByPrimaryKey(primaryKeyValue: number, moneyValue: number, trx?: Transaction<Database>){
+    async updateMoneyByPrimaryKey(primaryKeyValue: number, moneyValue: number, trx?: Transaction<Database>): Promise<UpdateResult[]> {
         const executor = trx || this._db;
         return await executor
             .updateTable('account')
@@ -38,14 +37,14 @@ export class AccountDBService {
             .where('accountId', '=', primaryKeyValue).execute();
     }
     
-    async insertNewRow(values: Insertable<Account>){
-        await this._db
+    async insertNewRow(values: Insertable<AccountTable>): Promise<InsertResult[]> {
+        return await this._db
             .insertInto('account')
             .values(values)
             .execute();
     }
 
-    async checkAccountLogin(playerLogin: Selectable<Database['account']>['login']){
+    async getDataByAccountLogin(playerLogin: Account['login']): Promise<Account | undefined> {
         return await this._db.selectFrom('account').where('login', '=', playerLogin).selectAll().executeTakeFirst();
     }
 }

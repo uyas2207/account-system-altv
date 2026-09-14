@@ -1,43 +1,40 @@
 import * as alt from 'alt-client';
 
-import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig2'
+import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
+
+import { visualTextLabelConfig } from "./ConfigClient/ConfigClient";
 
 export class CarShopVisuals {
     //возможно можно использовать что то более простое чем map, но по поиску элементов и их удалению не меняя id по которым будет обращения map подходит больше всего (если в массиве удалить элемент по index остальные индексы съедут а держать пустой элемент в нем что бы индексы не съезжали неправильно)
     private priceTextLabels: Map <number, alt.TextLabel> = new Map <number, alt.TextLabel>();
 
-    constructor(){
-    }
-
-    createTextLabel(coords: alt.Vector3, e: IVehiclesForSaleList, rotation: alt.Vector3, index: number){
+    createTextLabel(coords: alt.Vector3, e: IVehiclesForSaleList, rotation: alt.Vector3, index: number): void {
         const label = new alt.TextLabel(
             `${e.model}\n${e.price}`,
-            "ChaletLondon",
-            100,
-            1,
+            visualTextLabelConfig.fontName,
+            visualTextLabelConfig.fontSize,
+            visualTextLabelConfig.scale,
             coords,
             rotation,
-            new alt.RGBA(alt.RGBA.white),               //вынести в конфиг
-            2,
-            new alt.RGBA(alt.RGBA.white),
-            true,
-            100   
+            visualTextLabelConfig.color,
+            visualTextLabelConfig.outlineWidth,
+            visualTextLabelConfig.outlineColor,
+            visualTextLabelConfig.useStreaming,
+            visualTextLabelConfig.streamingDistance
         );
         this.priceTextLabels.set(index, label);
-        alt.logDebug('Создан labex:', index);
     }
 
-    destroyLabel(index: number){
+    destroyLabel(index: number): void {
         if(this.priceTextLabels.has(index)){
             const label = this.priceTextLabels.get(index)
             label?.destroy();
             this.priceTextLabels.delete(index);
-            alt.logDebug('Удален labex:', index);
         }
     }
 
     //дебаг команда потом удалить
-    print(){
+    print(): void {
         alt.log('Весь priceTextLabels');
         this.priceTextLabels.forEach((value, key) => {
             alt.log(`Ключ: ${(key)}`);

@@ -15,62 +15,12 @@ class CarShopClient {
         this.carShopVisuals = new CarShopVisuals();
     }
     
-    #init(){
-        alt.on('consoleCommand', async (command, ...arg) => {
-
-            if(command === "color1"){
-                const a = Number(arg[0]);
-                alt.emitServer("color1", a);
-            }
-            if(command === "color2"){
-                const a = Number(arg[0]);
-                alt.emitServer("color2", a);
-            }
-
-            if(command === 'del'){
-                this.carShopVisuals.destroyLabel(Number(arg[0]));
-            }
-
-            if(command === 'vehinfo'){
-                const entity = alt.Player.local.vehicle as Record<string, any>;
-                for (let key in entity) {                
-                    try {
-                        alt.log(`${key} = ${entity[key]}`);
-                    } catch (error) {
-                        
-                    }
-                }
-            } 
-            if(command === 'print'){
-                this.carShopVisuals.print();
-            }
-        });
-
+    #init(): void{
         alt.on("gameEntityCreate", async (entity) => {
-            //пока что костыль, почему то при тп в зону с авто их коордлинаты считаются 0, хотя все проверки на valid isspawned visible scriptID и т.д. говорят что авто заспанилось корректно
-            //почему то все проверки говорят что авто норм, но координаты неправильны, поэтому добавил задержку перед спавном текста что бы он был на корректных координатах
-            if(entity.pos.x === 0){
-                await new Promise(resolve => alt.setTimeout(resolve, 1000));
-            }
-
+            if(entity.type !== alt.BaseObjectType.Vehicle) return;
+            
             if(entity.hasStreamSyncedMeta('CarForSaleId')){
-                const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
-                const nativeResult = native.getModelDimensions(entity.model);
-                native.freezeEntityPosition(entity.scriptID, true);
-                native.setVehicleUndriveable(entity.scriptID, true);
-                native.setEntityCanBeDamaged(entity.scriptID, false);
-                //native.setVehicleCanBreak(entity.scriptID, false);
-                
-                //длинна от центра машины до ее передней точки по y (независимо от угла под каким стоит машина, вычисления идут по модели в дефолт расположении по осям)
-                const y = nativeResult[2].y;
-
-                const expectedX = entity.pos.x - Math.sin(entity.rot.z) * y;
-                const expectedY = entity.pos.y + Math.cos(entity.rot.z) * y;
-                const expectedZ = entity.pos.z;
-
-                const coords = new alt.Vector3(expectedX, expectedY, expectedZ);
-                const configData = vehiclesForSaleList[index];
-                this.carShopVisuals.createTextLabel(coords, configData!, entity.rot, index);
+                this._setupCarForSale(entity as alt.Vehicle);
             }
         });
 
@@ -82,35 +32,67 @@ class CarShopClient {
         });
 
         alt.on('startEnteringVehicle', (vehicle, seat, player) => {
-            console.log("vehicle.id", vehicle.id)
             if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
                 const model = native.getDisplayNameFromVehicleModel(vehicle.model);
-                drawNotification(`/buy что бы купить машину ${model?.toLowerCase()}`);      //вынести текст в конфиг
+                drawNotification(`/buy что бы купить машину ${model?.toLowerCase()}`);
             }
         });
 
         alt.on('streamSyncedMetaChange', (entity, metaKey, value, oldValue) => {
-            if (!(entity instanceof alt.Entity)) return;
-
+            if(entity.type !== alt.BaseObjectType.Vehicle) return;
+            
             if(metaKey === 'CarForSaleId' && value === undefined){
-                native.freezeEntityPosition(entity.scriptID, false);
-                native.setVehicleUndriveable(entity.scriptID, false);
-                native.setEntityCanBeDamaged(entity.scriptID, true);
+                this._toogleVehicleAvailability(entity as alt.Vehicle, true);
                 this.carShopVisuals.destroyLabel(oldValue);
             }
         });
-
-/*         alt.onServer('carShop:createClientDemonstrationScene', (vehiclesForSale) => {
-            //this.carShopVisuals.createTextLabels(vehiclesForSale);
-            //this.#createVehiclesForSale(vehiclesForSale);
-
-        }); */
     }
 
-    #allowCarPurchase(price: number, vehicle: alt.Vehicle){
+    private async _setupCarForSale(entity: alt.Vehicle): Promise<void>{
+        //пока что костыль, почему то при тп в зону с авто их коордлинаты считаются 0, хотя все проверки на valid isspawned visible scriptID и т.д. говорят что авто заспанилось корректно
+        //почему то все проверки говорят что авто норм, но координаты неправильны, поэтому добавил задержку перед спавном текста что бы он был на корректных координатах
+        if(entity.pos.x === 0){
+            await new Promise(resolve => alt.setTimeout(resolve, 800));
+        }
+        this._toogleVehicleAvailability(entity, false);
         
+        const coords = this._calculateVehicleLavelCoords(entity);
+        const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
+        const configData = vehiclesForSaleList[index];
 
+        if(!configData){
+            alt.logError(`Не удалось найти машину в конфиге`);
+            return;
+        }
+        this.carShopVisuals.createTextLabel(coords, configData, entity.rot, index);
     }
+
+    private _toogleVehicleAvailability(entity: alt.Vehicle, vehicleAvailabilityState: boolean): void{
+        native.freezeEntityPosition(entity.scriptID, !vehicleAvailabilityState);
+        native.setVehicleUndriveable(entity.scriptID, !vehicleAvailabilityState);
+        native.setEntityCanBeDamaged(entity.scriptID, vehicleAvailabilityState);
+    }
+
+    private _calculateVehicleLavelCoords(entity: alt.Vehicle): alt.Vector3 {
+        const nativeResult = native.getModelDimensions(entity.model);
+        //длинна от центра машины до ее передней точки по y (независимо от угла под каким стоит машина, вычисления идут по модели в дефолт расположении по осям)
+        const length = nativeResult[2].y;
+
+        const expectedX = entity.pos.x - Math.sin(entity.rot.z) * length;
+        const expectedY = entity.pos.y + Math.cos(entity.rot.z) * length;
+        const expectedZ = entity.pos.z + 2;
+        return new alt.Vector3(expectedX, expectedY, expectedZ);
+    }
+    //если потом придется перейти на поиск машины в конфиге а не использование index из StreamSyncedMeta
+    private _findVehPriceInConfig(model: string){
+        for (let index = 0; index < vehiclesForSaleList.length; index++) {
+            const element = vehiclesForSaleList[index];
+            if(element?.model.toLowerCase() === model.toLowerCase()){
+                return {element, index};
+            }
+        }
+    }
+
 }
 
 new CarShopClient();
