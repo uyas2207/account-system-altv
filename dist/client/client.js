@@ -56,7 +56,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
 
 const visualTextLabelConfig = {
-    fontName: "ChaletLondon",
+    fontName: "default",
     fontSize: 100,
     scale: 1,
     color: new alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA(alt_client__WEBPACK_IMPORTED_MODULE_0__.RGBA.white),
@@ -69,10 +69,10 @@ const visualTextLabelConfig = {
 
 /***/ },
 
-/***/ "./client/utilities.ts"
-/*!*****************************!*\
-  !*** ./client/utilities.ts ***!
-  \*****************************/
+/***/ "./client/utilitiesClient.ts"
+/*!***********************************!*\
+  !*** ./client/utilitiesClient.ts ***!
+  \***********************************/
 (__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 __webpack_require__.r(__webpack_exports__);
@@ -111,34 +111,22 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 const vehiclesForSaleList = [
     {
-        model: "adder",
-        primaryColor: 23,
-        secondaryColor: 42,
-        price: 5000
+        model: "",
+        primaryColor: 200,
+        secondaryColor: 200,
+        price: 1.1
     },
     {
         model: "benson",
         primaryColor: 1,
         secondaryColor: 22,
-        price: 10000
+        price: 1.123
     },
     {
         model: "avisa",
         primaryColor: 61,
         secondaryColor: 24,
         price: 123
-    },
-    {
-        model: "bmx",
-        primaryColor: 111,
-        secondaryColor: 43,
-        price: 132
-    },
-    {
-        model: "mule",
-        primaryColor: 66,
-        secondaryColor: 42,
-        price: 531
     },
     {
         model: "tornado",
@@ -152,6 +140,18 @@ const vehiclesForSaleList = [
         secondaryColor: 42,
         price: 4321
     },
+    {
+        model: "mule",
+        primaryColor: 66,
+        secondaryColor: 42,
+        price: 531
+    },
+    {
+        model: "tornado",
+        primaryColor: 11,
+        secondaryColor: 42,
+        price: 4321
+    }
 ];
 
 
@@ -263,7 +263,7 @@ let __webpack_exports__ = {};
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var alt_client__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! alt-client */ "alt-client");
 /* harmony import */ var natives__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! natives */ "natives");
-/* harmony import */ var _utilities__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./utilities */ "./client/utilities.ts");
+/* harmony import */ var _utilitiesClient__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./utilitiesClient */ "./client/utilitiesClient.ts");
 /* harmony import */ var _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! @shared/SharedConfig */ "./shared/SharedConfig.ts");
 /* harmony import */ var _CarShopVisuals__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! ./CarShopVisuals */ "./client/CarShopVisuals.ts");
 
@@ -274,10 +274,10 @@ __webpack_require__.r(__webpack_exports__);
 class CarShopClient {
     carShopVisuals;
     constructor() {
-        this.#init();
         this.carShopVisuals = new _CarShopVisuals__WEBPACK_IMPORTED_MODULE_4__.CarShopVisuals();
+        this._init();
     }
-    #init() {
+    _init() {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on("gameEntityCreate", async (entity) => {
             if (entity.type !== alt_client__WEBPACK_IMPORTED_MODULE_0__.BaseObjectType.Vehicle)
                 return;
@@ -294,7 +294,7 @@ class CarShopClient {
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('startEnteringVehicle', (vehicle, seat, player) => {
             if (vehicle.hasStreamSyncedMeta('CarForSaleId')) {
                 const model = natives__WEBPACK_IMPORTED_MODULE_1__["default"].getDisplayNameFromVehicleModel(vehicle.model);
-                (0,_utilities__WEBPACK_IMPORTED_MODULE_2__.drawNotification)(`/buy что бы купить машину ${model?.toLowerCase()}`);
+                (0,_utilitiesClient__WEBPACK_IMPORTED_MODULE_2__.drawNotification)(`/buy что бы купить машину ${model?.toLowerCase()}`);
             }
         });
         alt_client__WEBPACK_IMPORTED_MODULE_0__.on('streamSyncedMetaChange', (entity, metaKey, value, oldValue) => {
@@ -333,7 +333,7 @@ class CarShopClient {
         const length = nativeResult[2].y;
         const expectedX = entity.pos.x - Math.sin(entity.rot.z) * length;
         const expectedY = entity.pos.y + Math.cos(entity.rot.z) * length;
-        const expectedZ = entity.pos.z + 2;
+        const expectedZ = entity.pos.z + 0.5;
         return new alt_client__WEBPACK_IMPORTED_MODULE_0__.Vector3(expectedX, expectedY, expectedZ);
     }
     //если потом придется перейти на поиск машины в конфиге а не использование index из StreamSyncedMeta

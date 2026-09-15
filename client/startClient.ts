@@ -1,7 +1,7 @@
 import * as alt from 'alt-client';
 import native from 'natives'
 
-import { drawNotification } from './utilities';
+import { drawNotification } from './utilitiesClient';
 
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 
@@ -11,11 +11,11 @@ import { CarShopVisuals } from './CarShopVisuals'
 class CarShopClient {
     private readonly carShopVisuals: CarShopVisuals;
     constructor(){
-        this.#init();
         this.carShopVisuals = new CarShopVisuals();
+        this._init();
     }
     
-    #init(): void{
+    private _init(): void{
         alt.on("gameEntityCreate", async (entity) => {
             if(entity.type !== alt.BaseObjectType.Vehicle) return;
             
@@ -80,7 +80,7 @@ class CarShopClient {
 
         const expectedX = entity.pos.x - Math.sin(entity.rot.z) * length;
         const expectedY = entity.pos.y + Math.cos(entity.rot.z) * length;
-        const expectedZ = entity.pos.z + 2;
+        const expectedZ = entity.pos.z + 0.5;
         return new alt.Vector3(expectedX, expectedY, expectedZ);
     }
     //если потом придется перейти на поиск машины в конфиге а не использование index из StreamSyncedMeta

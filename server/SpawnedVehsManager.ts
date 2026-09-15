@@ -1,6 +1,7 @@
 import alt from 'alt-server';
 
 import { Vehicles } from './database/database'
+import{ defaultParameters } from './config/VehConfig'
 
 interface IVehicleData {
     vehicleId: number;
@@ -32,7 +33,7 @@ export class SpawnedVehsManager {
                 if(!(mapData?.TimeoutId)){
                     const despawnTimeoutId = alt.setTimeout(() => {
                         this.destroyVehicleOnTimer(vehicle);
-                    }, 120000);//120000
+                    }, defaultParameters.defaultDespawnTimer );//120000
                     this.allSpawnedVehicles.set(vehicle, { vehicleId: mapData!.vehicleId, vehOwnerId: mapData!.vehOwnerId, TimeoutId: despawnTimeoutId });
                 }
             }
@@ -49,7 +50,7 @@ export class SpawnedVehsManager {
         if(addDestroy){
             despawnTimeoutId = alt.setTimeout(() => {
                 this.destroyVehicleOnTimer(veh);
-            }, 120000);//120000
+            }, defaultParameters.defaultDespawnTimer);//120000
         }
         this.allSpawnedVehicles.set(veh, { vehicleId: vehId, vehOwnerId: accountId, TimeoutId: despawnTimeoutId });
     }
@@ -88,6 +89,11 @@ export class SpawnedVehsManager {
                 return key;
             }
         }
+    }
+
+    changeVehicleColor(veh: alt.Vehicle, color1: number, color2: number): void{
+        veh.primaryColor = color1;
+        veh.secondaryColor = color2;
     }
 
     getSpawnedVehicleOwnerId(veh: alt.Vehicle): number | undefined {

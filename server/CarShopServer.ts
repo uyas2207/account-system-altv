@@ -7,6 +7,8 @@ import { defaultParameters, vehicleSpawnCoords } from './config/VehConfig'
 import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
 import { Vehicles } from './database/database'
 
+import { checkIsModelValid } from './utilitiesServer'
+
 export class CarShopServer{
     constructor(
         private readonly config: Array<IVehiclesForSaleList>,
@@ -16,20 +18,27 @@ export class CarShopServer{
     }
 
     createVehiclesForSale(): void {
-        for (let index = 0; index < Math.min(defaultParameters.numberOfCarsForSale, vehicleSpawnCoords.length); index++) {
+        for (let index = 0; index < Math.min(defaultParameters.numberOfCarsForSale, vehicleSpawnCoords.length); index++) { 
+            
             const model = this.config[index]?.model;
-            const position = vehicleSpawnCoords[index]?.position;
-            const rotation = vehicleSpawnCoords[index]?.rotation;
+           
+            if(checkIsModelValid(model ?? "")){
+                const position = vehicleSpawnCoords[index]?.position;
+                const rotation = vehicleSpawnCoords[index]?.rotation;
 
-            if(!model || !position || !rotation){
-                throw new Error("Неправильные данные в конфиге");
+                if(!position || !rotation){
+                    throw new Error("Неправильные данные в конфиге");
+                }
+
+                const veh = new alt.Vehicle(model!, position, rotation);
+                veh.primaryColor = this.config[index]?.primaryColor ?? 0;
+                veh.secondaryColor = this.config[index]?.secondaryColor ?? 0;
+                veh.numberPlateText = "_";
+                veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
             }
-
-            const veh = new alt.Vehicle(model, position, rotation);
-            veh.primaryColor = this.config[index]?.primaryColor ?? 0;
-            veh.secondaryColor = this.config[index]?.secondaryColor ?? 0;
-            veh.numberPlateText = "_";
-            veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
+            else{
+                alt.logError("Передано неправильное значение model из фонфига по индексу =", index);
+            }
         }
     }
 
@@ -51,7 +60,7 @@ export class CarShopServer{
         }
         row.primaryColor = color1;
         row.secondaryColor = color2;
-        return await this.vehicleDBService.updateColorsByPrimaryKey(vehId, row);
+        await this.vehicleDBService.updateColorsByPrimaryKey(vehId, row);
     }
 
     async requestVehsByPlayer(player: alt.Player): Promise<Vehicles[]> {

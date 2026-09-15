@@ -1,7 +1,7 @@
 import * as alt from 'alt-client';
 
 export const visualTextLabelConfig = {
-    fontName: "ChaletLondon",
+    fontName: "default",
     fontSize: 100,
     scale: 1,
     color: new alt.RGBA(alt.RGBA.white),

@@ -13,8 +13,8 @@ interface IVehData {
     accountId: number;
     model: string;
     price: number;
-    vehOwnerId: number;
-    vehId: number;
+/*     vehOwnerId: number;
+    vehId: number; */
 }
 
 
@@ -128,17 +128,9 @@ export class CommandManager {
             }
             try {
                 const veh = this._checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
-                const accountId = this.accoutManager.requestPlayerAccountId(player);
-                const ownerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
-                if(ownerId === accountId){
-                    veh.primaryColor = color1;
-                    veh.secondaryColor = color2;
-                    const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
-                    this.carShopServer.changeVehColor(vehId!, color1, color2);
-                }
-                else{
-                    chat.send(player, "Вы не являетесь владельцем авто");
-                }
+                const vehId = this._chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
+                this.carShopServer.changeVehColor(vehId, color1, color2);
+                this.vehiclesManager.changeVehicleColor(veh, color1, color2);  //можно было бы тут поменять но для ООП решил в другой класс перекинуть
             } catch (error) {
                 chat.send(player,` ${error}`);
             }
@@ -197,22 +189,23 @@ export class CommandManager {
 
             return result;
         });
-        if(vehDBId) {
+/*         if(vehDBId) {
             const id = Number(vehDBId[0]!.insertId);
             this.vehiclesManager.addVehicle(id, veh, data.accountId, false);
-        }
+        } */
         chat.send(player, 'МАШИНА КУПЛЕНА УСПЕШНО');
-        veh.deleteStreamSyncedMeta('CarForSaleId');
+        //veh.deleteStreamSyncedMeta('CarForSaleId');
     }
     
     private async _onCarSellAttempt(player: alt.Player, veh: alt.Vehicle): Promise<void>{
         const data = this._getPlayerVehData(player, veh);
-        
-        if(data.vehOwnerId !== data.accountId){
+        const vehOwnerId = this._chechkVehicleOwner(player, veh);
+        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
+/*         if(data.vehOwnerId !== data.accountId){
             throw new Error ("Вы не являетесь владельцем авто");
-        }
-        if(!data.vehOwnerId || !data.vehId){
-            alt.logError(`Не хватает данных, vehOwnerId: ${data.vehOwnerId}, vehId: ${data.vehId}`);
+        } */
+        if(!vehOwnerId || !vehId){
+            alt.logError(`Не хватает данных, vehOwnerId: ${vehOwnerId}, vehId: ${vehId}`);
             throw new Error("Произошла непредвиденная ошибка");
         }
 
@@ -222,7 +215,7 @@ export class CommandManager {
                 throw new Error("Не удалось получить кол-во денег на аккаунте");
             }
             const resultMoney = Math.trunc(currentPlayerMoney + (data.price * defaultParameters.percentageForSell));
-            await this.DBTransactionManager.vehicle.deleteRowByPrimaryKey(data.vehId, trx);
+            await this.DBTransactionManager.vehicle.deleteRowByPrimaryKey(vehId, trx);
             await this.DBTransactionManager.account.updateMoneyByPrimaryKey(data.accountId, resultMoney, trx);
         });
         this.vehiclesManager.checkVehicleBeforeDestroy(veh);
@@ -233,14 +226,24 @@ export class CommandManager {
         const accountId = this.accoutManager.requestPlayerAccountId(player);
         const model = (alt.getVehicleModelInfoByHash(veh.model).title);
         const price = this.carShopServer.findVehPriceInConfig(model);
-        const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh) ?? 0;
-        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh) ?? 0;
+        //const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh) ?? 0;
+        //const vehId = this.vehiclesManager.getSpawnedVehicleId(veh) ?? 0;
+        
         //пытался вынести проверку в findVehPriceInConfig, но тс выдавал ошибку поэтому проверка тут
         if(!price){
             alt.logError("Попытка купить машину которой нет в конфиге model:", model);
             throw new Error("Не удалось купить машину");  
         }
-        return({ accountId, model, price, vehOwnerId, vehId });
+        return({ accountId, model, price/* , vehOwnerId, vehId */ });
+    }
+
+    private _chechkVehicleOwner(player: alt.Player, veh: alt.Vehicle): number{
+        const accountId = this.accoutManager.requestPlayerAccountId(player);
+        const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
+        if(accountId !== vehOwnerId){
+            throw new Error ("Вы не являетесь владельцем авто");
+        }
+        return accountId;//нет смысла возврщать и accountId и vehOwnerId так как они прошли проверку => одинаковые
     }
     //ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
     //для проверки что цвет число и входит в список цветов altv

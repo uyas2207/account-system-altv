@@ -38,6 +38,9 @@ export class AccountManager {
     }
 
     async onAccountRegisterAttempt(player: alt.Player, playerLogin: string, playerPassword: string, playerRepeatPassword: string): Promise<void> {
+        if(this.checkIsPlayerLoggedIn(player)){
+            throw new Error('Вы уже находитесь в аккаунте');
+        }
         if( await this.accountDBService.getDataByAccountLogin(playerLogin) !== undefined){
             throw new Error('Данный логин не достпуен');
         }
