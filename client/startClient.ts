@@ -56,7 +56,7 @@ class CarShopClient {
         }
         this._toogleVehicleAvailability(entity, false);
         
-        const coords = this._calculateVehicleLavelCoords(entity);
+        const coords = this._calculateVehicleTextCoords(entity);
         const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
         const configData = vehiclesForSaleList[index];
 
@@ -73,7 +73,7 @@ class CarShopClient {
         native.setEntityCanBeDamaged(entity.scriptID, vehicleAvailabilityState);
     }
 
-    private _calculateVehicleLavelCoords(entity: alt.Vehicle): alt.Vector3 {
+    private _calculateVehicleTextCoords(entity: alt.Vehicle): alt.Vector3 {
         const nativeResult = native.getModelDimensions(entity.model);
         //длинна от центра машины до ее передней точки по y (независимо от угла под каким стоит машина, вычисления идут по модели в дефолт расположении по осям)
         const length = nativeResult[2].y;

@@ -29,8 +29,8 @@ class StartServer {
         this.vehicleDBService = new VehicleDBService(db);
         this.DBTransactionManager = new DBTransactionManager(db, this.accountDBService, this.vehicleDBService);
         this.accoutManager = new AccountManager(this.accountDBService);
-        this.carShopServer = new CarShopServer(vehiclesForSaleList, this.vehicleDBService, this.accoutManager);
-        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer, this.spawnedVehsManager, this.DBTransactionManager);
+        this.carShopServer = new CarShopServer(vehiclesForSaleList, this.vehicleDBService, this.accoutManager, this.DBTransactionManager, this.spawnedVehsManager);
+        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer, this.spawnedVehsManager);
 
         this._init();
     }

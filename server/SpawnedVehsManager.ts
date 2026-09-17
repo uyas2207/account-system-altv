@@ -68,6 +68,18 @@ export class SpawnedVehsManager {
         }
     }
 
+    getOrSpawnVehicle(player: alt.Player, vehData: Vehicles): boolean {
+        const result = this.checkAllSpawnedVehicles(vehData.vehId);
+        if(!result){
+            this.spawnVehicle(player, vehData!);
+            return true;
+        }
+        else{
+            result.pos = player.pos;
+            return false;
+        }
+    }
+
     checkVehicleBeforeDestroy(vehicle: alt.Vehicle): void{
         if(this.allSpawnedVehicles.has(vehicle)){
             const mapData = this.allSpawnedVehicles.get(vehicle);
@@ -89,11 +101,6 @@ export class SpawnedVehsManager {
                 return key;
             }
         }
-    }
-
-    changeVehicleColor(veh: alt.Vehicle, color1: number, color2: number): void{
-        veh.primaryColor = color1;
-        veh.secondaryColor = color2;
     }
 
     getSpawnedVehicleOwnerId(veh: alt.Vehicle): number | undefined {

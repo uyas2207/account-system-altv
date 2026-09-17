@@ -111,16 +111,16 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ });
 const vehiclesForSaleList = [
     {
-        model: "",
+        model: "asd",
         primaryColor: 200,
         secondaryColor: 200,
-        price: 1.1
+        price: 1500
     },
     {
         model: "benson",
         primaryColor: 1,
         secondaryColor: 22,
-        price: 1.123
+        price: 333
     },
     {
         model: "avisa",
@@ -313,7 +313,7 @@ class CarShopClient {
             await new Promise(resolve => alt_client__WEBPACK_IMPORTED_MODULE_0__.setTimeout(resolve, 800));
         }
         this._toogleVehicleAvailability(entity, false);
-        const coords = this._calculateVehicleLavelCoords(entity);
+        const coords = this._calculateVehicleTextCoords(entity);
         const index = entity.getStreamSyncedMeta('CarForSaleId');
         const configData = _shared_SharedConfig__WEBPACK_IMPORTED_MODULE_3__.vehiclesForSaleList[index];
         if (!configData) {
@@ -327,7 +327,7 @@ class CarShopClient {
         natives__WEBPACK_IMPORTED_MODULE_1__["default"].setVehicleUndriveable(entity.scriptID, !vehicleAvailabilityState);
         natives__WEBPACK_IMPORTED_MODULE_1__["default"].setEntityCanBeDamaged(entity.scriptID, vehicleAvailabilityState);
     }
-    _calculateVehicleLavelCoords(entity) {
+    _calculateVehicleTextCoords(entity) {
         const nativeResult = natives__WEBPACK_IMPORTED_MODULE_1__["default"].getModelDimensions(entity.model);
         //длинна от центра машины до ее передней точки по y (независимо от угла под каким стоит машина, вычисления идут по модели в дефолт расположении по осям)
         const length = nativeResult[2].y;
