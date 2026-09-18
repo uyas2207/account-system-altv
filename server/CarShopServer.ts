@@ -1,139 +1,81 @@
 import alt from 'alt-server';
 
 import { VehicleDBService } from './DataBase_classes/VehicletDBService'
-import { AccountManager } from './AccountManager'
 
-import { defaultParameters, vehicleSpawnCoords } from './config/VehConfig'
-import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
-import { Vehicles } from './database/database'
-
-import { DBTransactionManager } from './DataBase_classes/DBTransactionManager';
 import { SpawnedVehsManager } from './SpawnedVehsManager'
 
-import { checkIsModelValid } from './utilitiesServer'
-
-interface IVehData {
-    accountId: number;
-    model: string;
-    price: number;
-}
+import { VehiclesForSaleManager } from "./CarShopClasses/VehiclesForSaleManager";
+import { VehiclesDataCollector } from "./CarShopClasses/VehiclesDataCollector";
+import { CarShopDBIntreractor } from "./CarShopClasses/CarShopDBIntreractor";
 
 export class CarShopServer{
     constructor(
-        private readonly config: Array<IVehiclesForSaleList>,
         private readonly vehicleDBService: VehicleDBService,
-        private readonly accoutManager: AccountManager,
-        private readonly DBTransactionManager: DBTransactionManager,
+        private readonly carShopDBIntreractor: CarShopDBIntreractor,
         private readonly vehiclesManager: SpawnedVehsManager,
+        private readonly vehiclesForSaleManager: VehiclesForSaleManager,
+        private readonly vehiclesDataCollector: VehiclesDataCollector
     ){
+  }
+
+    async onCarPurchaseAttempt(player: alt.Player){
+        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+
+        this.vehiclesForSaleManager.checkIsCarForSale(veh);
+        const data = this.vehiclesDataCollector.getPlayerVehData(player, veh);
+        const vehDBId = await this.carShopDBIntreractor.purchaseVehicleTransaction(data, veh);
+        return vehDBId;
+        //this.vehiclesForSaleManager.removeCarForSaleSyncedMeta(veh);
     }
 
-    createVehiclesForSale(): void {
-        for (let index = 0; index < Math.min(defaultParameters.numberOfCarsForSale, vehicleSpawnCoords.length); index++) { 
-            
-            const model = this.config[index]?.model;
-           
-            if(checkIsModelValid(model ?? "")){
-                const position = vehicleSpawnCoords[index]?.position;
-                const rotation = vehicleSpawnCoords[index]?.rotation;
-
-                if(!position || !rotation){
-                    throw new Error("Неправильные данные в конфиге");
-                }
-
-                const veh = new alt.Vehicle(model!, position, rotation);
-                veh.primaryColor = this.config[index]?.primaryColor ?? 0;
-                veh.secondaryColor = this.config[index]?.secondaryColor ?? 0;
-                veh.numberPlateText = "_";
-                veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
-            }
-            else{
-                alt.logError("Передано неправильное значение model из фонфига по индексу =", index);
-            }
-        }
-    }
-
-    async purchaseVehicle(player: alt.Player, veh: alt.Vehicle){
-        this.checkIsCarForSale(player);
-        const data = this._getPlayerVehData(player, veh);
-    
-        const vehDBId = await this.DBTransactionManager.transaction(async (trx) => {
-            const playerMoney = await this.DBTransactionManager.account.getMoneyByPrimaryKey(data.accountId, trx);
-            if (typeof playerMoney !== "number") {
-                throw new Error(`Игрок с ID ${data.accountId} не найден в базе данных`);
-            }
-            if(playerMoney < data.price){
-                throw new Error("На аккаунте недостаточно денег");
-            }
-
-            const moneyAfterOperation = playerMoney - data.price;
-            await this.DBTransactionManager.account.updateMoneyByPrimaryKey(data.accountId, moneyAfterOperation, trx);
-            const result = await this.DBTransactionManager.vehicle.insertNewRow({
-                ownerId: data.accountId,
-                model: data.model,
-                primaryColor: veh.primaryColor,
-                secondaryColor: veh.secondaryColor,
-                price: data.price
-            }, trx);
-
-            return result;
-        });
-        return vehDBId[0]?.insertId;
-        //veh.deleteStreamSyncedMeta('CarForSaleId');
-    }
-
-    async sellVehicle(player: alt.Player, veh: alt.Vehicle): Promise<void>{
-        const data = this._getPlayerVehData(player, veh);
-        const vehOwnerId = this.chechkVehicleOwner(player, veh);
+    async onCarSellAttempt(player: alt.Player){
+        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+        
+        const data = this.vehiclesDataCollector.getPlayerVehData(player, veh);
+        const vehOwnerId = this.vehiclesDataCollector.chechkVehicleOwner(player, veh);
         const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
 
         if(!vehOwnerId || !vehId){
             alt.logError(`Не хватает данных, vehOwnerId: ${vehOwnerId}, vehId: ${vehId}`);
             throw new Error("Произошла непредвиденная ошибка");
         }
-
-        await this.DBTransactionManager.transaction(async (trx) => {
-            const currentPlayerMoney = await this.DBTransactionManager.account.getMoneyByPrimaryKey(data.accountId, trx);
-            if(typeof currentPlayerMoney !== "number"){
-                throw new Error("Не удалось получить кол-во денег на аккаунте");
-            }
-            const resultMoney = Math.trunc(currentPlayerMoney + (data.price * defaultParameters.percentageForSell));
-            await this.DBTransactionManager.vehicle.deleteRowByPrimaryKey(vehId, trx);
-            await this.DBTransactionManager.account.updateMoneyByPrimaryKey(data.accountId, resultMoney, trx);
-        });
+        const resultMoney = await this.carShopDBIntreractor.sellVehicleTransaction(data, vehId);
         this.vehiclesManager.checkVehicleBeforeDestroy(veh);
+        return resultMoney;
     }
-
-    private _getPlayerVehData(player: alt.Player, veh: alt.Vehicle): IVehData {
-        const accountId = this.accoutManager.requestPlayerAccountId(player);
-        const model = (alt.getVehicleModelInfoByHash(veh.model).title);
-        const price = this.findVehPriceInConfig(model);
-
-        //пытался вынести проверку в findVehPriceInConfig, но ts выдавал ошибку поэтому проверка тут
-        if(!price){
-            alt.logError("Попытка купить машину которой нет в конфиге model:", model);
-            throw new Error("Нет корректной цены у машины");  
+    //как будто бы метод должен относиться к SpawnedVehsManager, но не хотелось бы ради одного метода передавать туда лишние зависимости vehiclesDataCollector
+    async onSpawnVehicleAttempt(player: alt.Player, arg: string) {
+        const allCurrentPlayerVehs = await this.vehiclesDataCollector.requestVehsByPlayer(player);
+        const allVehIds = allCurrentPlayerVehs.map(playerVeh => playerVeh.vehId);
+        const id = Number(arg);
+        if(!(allVehIds.includes(id))){
+            throw new Error("У вас нет авто стаким id");
         }
-        return({ accountId, model, price});
+        const vehData = allCurrentPlayerVehs.find(playerVeh => playerVeh.vehId === id);
+        if(!vehData){
+            throw new Error("Не удалось получить необходимые данные об авто");
+        }
+        return this.vehiclesManager.getOrSpawnVehicle(player, vehData);
     }
-    
-    chechkVehicleOwner(player: alt.Player, veh: alt.Vehicle): number{
-        const accountId = this.accoutManager.requestPlayerAccountId(player);
-        const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
-        if(accountId !== vehOwnerId){
-            throw new Error ("Вы не являетесь владельцем авто");
+    //как будто бы метод должен относиться к SpawnedVehsManager, но не хотелось бы ради одного метода передавать туда лишние зависимости vehiclesDataCollector
+    async onChangeColorAttempt(player: alt.Player, color1: number, color2: number){
+        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+        this.vehiclesDataCollector.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
+        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
+        if(!vehId){
+            throw new Error("Произошла ошибка при получении данных машины");
         }
-        return accountId;//нет смысла возврщать и accountId и vehOwnerId так как они прошли проверку => одинаковые
+        await this.changeVehColor(vehId, veh, color1, color2);
     }
-
-    checkIsCarForSale(player: alt.Player): void {
-        const vehicle = player.vehicle;
-        if(!vehicle){
-            throw new Error('Для покупки автомобиля нужно сидеть в автомобиле');
+    //как будто бы метод должен относиться к SpawnedVehsManager, но не хотелось бы ради одного метода передавать туда лишние зависимости vehiclesDataCollector
+    async onChangeNumberPlateAttempt(player: alt.Player, text: string){
+        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+        this.vehiclesDataCollector.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
+        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
+        if(!vehId){
+            throw new Error("Произошла ошибка при получении данных машины");
         }
-        if(!vehicle!.hasStreamSyncedMeta('CarForSaleId')){
-            throw new Error('Этот автомобиль не продается');
-        }
+        await this.ChangeVehNuberPlate(vehId, veh, text);
     }
 
     async changeVehColor(vehId: number, veh: alt.Vehicle, color1: number, color2: number): Promise<void> {
@@ -158,19 +100,8 @@ export class CarShopServer{
         //скорее всего лушче закинуть в другой класс
         veh.numberPlateText = text;
     }
-    
-    async requestVehsByPlayer(player: alt.Player): Promise<Vehicles[]> {
-        const currentPlayerAccountId = this.accoutManager.requestPlayerAccountId(player);
-        const allvehs = await this.vehicleDBService.getAllVehsByAccountId(currentPlayerAccountId);
-        return allvehs;
-    }
-
-    findVehPriceInConfig(model: string): number | undefined {
-        const foundCar = this.config.find(value => value.model.toLowerCase() === model.toLowerCase()); //регистр в конфиге может отличаться от регистра getVehicleModelInfoByHash
-/*         if(!foundCar || !foundCar.price){
-            alt.logError("Попытка купить машину которой нет в конфиге model:", model);
-            throw new Error("Не удалось купить машину");  
-        } */
-        return foundCar?.price;
+    //спорный момент, но не хотелось передавать лишнюю зависимость в CommandManager
+    async requestVehsByPlayer(player: alt.Player){
+        return await this.vehiclesDataCollector.requestVehsByPlayer(player);
     }
 }

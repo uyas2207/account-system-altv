@@ -8,36 +8,48 @@ import { SpawnedVehsManager } from './SpawnedVehsManager';
 
 import { AccountDBService } from './DataBase_classes/AccountDBService';
 import { VehicleDBService } from './DataBase_classes/VehicletDBService';
-import { DBTransactionManager } from "./DataBase_classes/DBTransactionManager";
+import { CarShopDBIntreractor } from "./CarShopClasses/CarShopDBIntreractor";
+import { VehiclesForSaleManager } from "./CarShopClasses/VehiclesForSaleManager";
+import { VehiclesDataCollector } from "./CarShopClasses/VehiclesDataCollector";
 
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 
 class StartServer {
     private readonly accountDBService: AccountDBService;
     private readonly vehicleDBService: VehicleDBService;
-    private readonly DBTransactionManager: DBTransactionManager;
+    private readonly carShopDBIntreractor: CarShopDBIntreractor;
 
+    private readonly vehiclesForSaleManager: VehiclesForSaleManager;
     private readonly accoutManager: AccountManager;
+    private readonly vehiclesDataCollector: VehiclesDataCollector;
     private readonly commandManager: CommandManager;
     private readonly carShopServer: CarShopServer;
     private readonly spawnedVehsManager: SpawnedVehsManager;
+
 
     constructor()
     {
         this.spawnedVehsManager = new SpawnedVehsManager();
         this.accountDBService = new AccountDBService(db);
         this.vehicleDBService = new VehicleDBService(db);
-        this.DBTransactionManager = new DBTransactionManager(db, this.accountDBService, this.vehicleDBService);
+        this.carShopDBIntreractor = new CarShopDBIntreractor(db, this.accountDBService, this.vehicleDBService)
+        this.vehiclesForSaleManager = new VehiclesForSaleManager(vehiclesForSaleList);
         this.accoutManager = new AccountManager(this.accountDBService);
-        this.carShopServer = new CarShopServer(vehiclesForSaleList, this.vehicleDBService, this.accoutManager, this.DBTransactionManager, this.spawnedVehsManager);
-        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer, this.spawnedVehsManager);
+        this.vehiclesDataCollector = new VehiclesDataCollector(this.accoutManager, this.vehicleDBService, this.spawnedVehsManager, this.vehiclesForSaleManager)
+        this.carShopServer = new CarShopServer(this.vehicleDBService, this.carShopDBIntreractor, this.spawnedVehsManager, this.vehiclesForSaleManager, this.vehiclesDataCollector);
+        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer);
 
         this._init();
     }
 
     private _init(): void {
         alt.on('resourceStart', async () => {
-            this.carShopServer.createVehiclesForSale();
+            try{
+                this.vehiclesForSaleManager.createVehiclesForSale();
+            }
+            catch(error){
+
+            }
         });
 
         alt.on('playerConnect', async (player) => {

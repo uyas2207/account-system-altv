@@ -15,7 +15,7 @@ class CarShopClient {
         this._init();
     }
     
-    private _init(): void{
+    private _init(): void {
         alt.on("gameEntityCreate", async (entity) => {
             if(entity.type !== alt.BaseObjectType.Vehicle) return;
             

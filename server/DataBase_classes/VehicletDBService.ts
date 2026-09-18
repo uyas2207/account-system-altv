@@ -1,5 +1,3 @@
-import alt from 'alt-server';
-
 import { Kysely, Insertable, Transaction, InsertResult, DeleteResult } from 'kysely';
 import { Database, VehiclesTable, VehiclesUpdate, Vehicles } from '../database/database'
 
