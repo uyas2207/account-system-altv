@@ -2,26 +2,44 @@
   "name": "test",
   "version": "1.0.0",
   "description": "",
+  "main": "tsconfig.json",
+  "devDependencies": {
+    "@altv/types-client": "^16.6.0",
+    "@altv/types-natives": "^16.2.1",
+    "@altv/types-server": "^16.6.0",
+    "@altv/types-shared": "^16.6.0",
+    "ts-loader": "^9.6.2",
+    "typescript": "5.9",
+    "webpack": "^5.108.4",
+    "webpack-cli": "^7.2.1"
+  },
   "scripts": {
-    "build:client": "node build-scripts/build-client",
-    "build:server": "node build-scripts/build-server",
-    "build": "npx concurrently \"npm:build:*\""
+    "build": "webpack --mode=production",
+    "build:dev": "webpack --mode=development",
+    "dev": "webpack --mode=development --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uyas2207/account-system-altv.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
-  "devDependencies": {
-    "@altv/types-client": "latest",
-    "@altv/types-natives": "latest",
-    "@altv/types-server": "latest",
-    "@altv/types-shared": "latest",
-    "concurrently": "^7.0.0"
+  "bugs": {
+    "url": "https://github.com/uyas2207/account-system-altv/issues"
   },
+  "homepage": "https://github.com/uyas2207/account-system-altv#readme",
   "dependencies": {
-    "altv-esbuild": "^0.9.3",
-    "esbuild": "^0.25.11",
-    "typescript": "^7.0.2"
-  },
-  "main": "index.js"
+    "kysely": "^0.29.5",
+    "locate-path": "^5.0.0",
+    "mysql2": "^3.24.2",
+    "path-exists": "^4.0.0",
+    "path-key": "^3.1.1",
+    "path-parse": "^1.0.7",
+    "webpack": "^5.110.2",
+    "webpack-cli": "^7.2.1",
+    "webpack-merge": "^6.0.1",
+    "webpack-sources": "^3.5.1"
+  }
 }
