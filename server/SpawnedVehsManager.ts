@@ -1,6 +1,6 @@
 import alt from 'alt-server';
 
-import { Vehicles } from './database/database'
+import { Vehicles } from './database/Database'
 import{ defaultParameters } from './config/ServerConfig'
 
 interface ISpawnedVehicleData {

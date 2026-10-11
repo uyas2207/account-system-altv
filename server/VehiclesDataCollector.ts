@@ -1,26 +1,26 @@
 import alt from 'alt-server';
 
-import { AccountManager } from '../AccountManager'
-import { VehicleDBService } from '../DataBase_classes/VehicletDBService'
+import { AccountManager } from './AccountManager'
+import { VehicleDBRepository } from './dataBaseRepositories/VehicleDBRepository'
 import { VehiclesForSaleManager } from "./VehiclesForSaleManager";
 
-import { SpawnedVehsManager } from "../SpawnedVehsManager";
+import { SpawnedVehsManager } from "./SpawnedVehsManager";
 
-import { Vehicles } from '../database/database'
-import { IVehData } from "../config/types/IVehData";
+import { Vehicles } from './database/Database'
+import { IVehData } from "./config/types/IVehData";
 
-import { ClientError } from '../ClientError'
+import { ClientError } from './errors/ClientError'
 
 export class VehiclesDataCollector {
     constructor(
         private readonly accoutManager: AccountManager,
-        private readonly vehicleDBService: VehicleDBService,
+        private readonly vehicleDBRepository: VehicleDBRepository,
         private readonly vehiclesManager: SpawnedVehsManager,
         private readonly vehiclesForSaleManager: VehiclesForSaleManager
     ){
     }
 
-    checkVehicleAndCollectData(player: alt.Player){
+    checkVehicleOwnershipAndCollectData(player: alt.Player){
         const veh = this.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
         this.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
         const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
@@ -45,8 +45,17 @@ export class VehiclesDataCollector {
 
     async requestVehsByPlayer(player: alt.Player): Promise<Vehicles[]> {
         const currentPlayerAccountId = this.accoutManager.requestPlayerAccountId(player);
-        const allvehs = await this.vehicleDBService.getAllVehsByAccountId(currentPlayerAccountId);
+        const allvehs = await this.vehicleDBRepository.getAllVehsByAccountId(currentPlayerAccountId);
         return allvehs;
+    }
+
+    async requestVehsByVehId(player: alt.Player, vehId: number){
+        const currentPlayerAccountId = this.accoutManager.requestPlayerAccountId(player);
+        const vehData = await this.vehicleDBRepository.getVehicleByVehIdAndOwnerId(currentPlayerAccountId, vehId);
+        if(!vehData){
+            throw new ClientError(`У вас нет машины с ID ${vehId}`);
+        }
+        return vehData;
     }
 
     chechkVehicleOwner(player: alt.Player, veh: alt.Vehicle): number{

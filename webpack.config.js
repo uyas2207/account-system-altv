@@ -22,7 +22,7 @@ return [
     {
       name: 'client',
       entry: [
-       './client/startClient.ts'
+       './client/index.ts'
       ],
       mode: isProduction ? 'production' : 'development',
       target: ['web', 'es2020'],
@@ -60,7 +60,7 @@ return [
     {
       name: 'server',
       entry: [        
-        './server/startServer.ts',
+        './server/index.ts',
       ],
       mode: isProduction ? 'production' : 'development',
       target: 'node16',

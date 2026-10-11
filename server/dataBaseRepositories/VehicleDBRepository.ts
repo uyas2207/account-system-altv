@@ -1,7 +1,7 @@
 import { Kysely, Insertable, Transaction, InsertResult, DeleteResult, UpdateResult } from 'kysely';
-import { Database, VehiclesTable, VehiclesUpdate, Vehicles } from '../database/database'
+import { Database, VehiclesTable, VehiclesUpdate, Vehicles } from '../database/Database'
 
-export class VehicleDBService {
+export class VehicleDBRepository {
     protected readonly _db: Kysely<Database>
     
     constructor(db: Kysely<Database>){
@@ -51,6 +51,15 @@ export class VehicleDBService {
     async getAllVehsByAccountId(accountId: Vehicles['ownerId']): Promise<Vehicles[]> {
         return await this._db
             .selectFrom('vehicles')
-            .where(('ownerId'), '=', accountId).selectAll().execute();
+            .where('ownerId', '=', accountId).selectAll().execute();
+    }
+
+    async getVehicleByVehIdAndOwnerId(accountId: Vehicles['ownerId'], vehId: Vehicles['vehId']): Promise<Vehicles | undefined> {
+        return await this._db
+            .selectFrom('vehicles')
+            .where('vehId', '=', vehId)
+            .where('ownerId', '=', accountId)
+            .selectAll()
+            .executeTakeFirst();
     }
 }

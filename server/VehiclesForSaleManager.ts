@@ -1,8 +1,8 @@
 import alt from 'alt-server';
 
-import { checkIsModelValid } from '../utilitiesServer'
+import {checkIsModelValid} from './UtilitiesServer'
 
-import { defaultParameters, vehicleSpawnCoords } from '../config/ServerConfig'
+import { defaultParameters, vehicleSpawnCoords } from './config/ServerConfig'
 import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
 
 export class VehiclesForSaleManager {

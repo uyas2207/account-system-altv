@@ -2,37 +2,36 @@ import alt from 'alt-server';
 
 import { Kysely, Transaction, UpdateResult } from 'kysely';
 
-import { Database } from '../database/database';
-import { AccountDBService } from "../DataBase_classes/AccountDBService";
-import { VehicleDBService } from "../DataBase_classes/VehicletDBService";
+import { Database } from './database/Database';
+import { AccountDBRepository } from "./dataBaseRepositories/AccountDBRepository";
+import { VehicleDBRepository } from "./dataBaseRepositories/VehicleDBRepository";
 
-import { defaultParameters } from '../config/ServerConfig'
+import { defaultParameters } from './config/ServerConfig'
 
-import { Vehicles } from "../database/database";
-import { IVehData } from "../config/types/IVehData";
+import { IVehData } from "./config/types/IVehData";
 
-import { ClientError } from '../ClientError'
+import { ClientError } from './errors/ClientError'
 
 export class CarShopDBIntreractor{
     protected readonly _db: Kysely<Database>
-    public readonly account: AccountDBService;
-    public readonly vehicle : VehicleDBService;
+    public readonly account: AccountDBRepository;
+    public readonly vehicle : VehicleDBRepository;
 
     constructor(
         db: Kysely<Database>,
-        accountDBService: AccountDBService, 
-        vehicleDBService: VehicleDBService,
+        accountDBRepository: AccountDBRepository, 
+        vehicleDBRepository: VehicleDBRepository,
     ){
         this._db = db;
-        this.account = accountDBService;
-        this.vehicle = vehicleDBService;
+        this.account = accountDBRepository;
+        this.vehicle = vehicleDBRepository;
     }
 
     async sellVehicleTransaction(data:IVehData, vehId: number): Promise<number | undefined>{
        const moneyAfterTransaction = await this._transaction(async (trx) => {
             const deleteResult = await this.vehicle.deleteRowByPrimaryKey(vehId, trx);
             if(deleteResult.numDeletedRows === 0n){
-                throw new ClientError("Операция с этой машиной недоступна в данный момент");
+                throw new ClientError("Операция с этой машиной недоступна в данный момент"); //машина уже продана
             }
             const sellingPrice = Math.trunc(data.price * defaultParameters.percentageForSell);
             await this.account.giveMoneyByPrimaryKey(data.accountId, sellingPrice, trx);
@@ -60,18 +59,6 @@ export class CarShopDBIntreractor{
         });
 
         return vehDBId.insertId;
-    }
-
-    async getVehicleRowByPrimaryKey(vehId: number): Promise<Vehicles | undefined> {
-        return await this.vehicle.getRowByPrimaryKey(vehId);
-    }
-
-    async updateVehicleRegistrationNumberByPrimaryKey(vehId: number, text: string): Promise<UpdateResult>{
-        return await this.vehicle.updateRegistrationNumberByPrimaryKey(vehId, text);
-    }
-
-    async updateVehicleColorsByPrimaryKey(vehId: number, row: Vehicles): Promise<UpdateResult>{
-        return await this.vehicle.updateColorsByPrimaryKey(vehId, row);
     }
 
     private async _transaction<T>(

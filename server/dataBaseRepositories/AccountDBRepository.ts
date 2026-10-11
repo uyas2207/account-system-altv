@@ -1,7 +1,7 @@
 import { Kysely, Insertable, Transaction, DeleteResult, InsertResult, UpdateResult, sql } from 'kysely';
-import { Database, AccountTable, Account } from '../database/database'
+import { Database, AccountTable, Account } from '../database/Database'
 
-export class AccountDBService {
+export class AccountDBRepository {
     protected readonly _db: Kysely<Database>
     
     constructor(db: Kysely<Database>){
@@ -34,7 +34,7 @@ export class AccountDBService {
         return await executor
             .updateTable('account')
             .set({money: sql`money + ${price}`})
-            .where('accountId', '=', primaryKeyValue).executeTakeFirstOrThrow();
+            .where('accountId', '=', primaryKeyValue).executeTakeFirst();
     }
 
     async takeMoneyByPrimaryKey(primaryKeyValue: number, price: number, trx?: Transaction<Database>): Promise<UpdateResult> {
@@ -44,7 +44,7 @@ export class AccountDBService {
             .set({money: sql`money - ${price}`})
             .where('accountId', '=', primaryKeyValue)
             .where('money', '>=', price)
-            .executeTakeFirstOrThrow();
+            .executeTakeFirst();
     }
     
     async insertNewRow(values: Insertable<AccountTable>): Promise<InsertResult[]> {

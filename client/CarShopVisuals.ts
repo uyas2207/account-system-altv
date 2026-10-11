@@ -32,13 +32,4 @@ export class CarShopVisuals {
             this.priceTextLabels.delete(index);
         }
     }
-
-    //дебаг команда потом удалить
-    print(){
-        alt.log('Весь priceTextLabels');
-        this.priceTextLabels.forEach((value, key) => {
-            alt.log(`Ключ: ${(key)}`);
-            alt.log('value:', (value));
-        });
-    }
 }

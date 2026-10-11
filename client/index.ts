@@ -1,7 +1,7 @@
 import * as alt from 'alt-client';
 import native from 'natives'
 
-import { drawNotification } from './utilitiesClient';
+import { drawNotification } from './UtilitiesClient';
 
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 

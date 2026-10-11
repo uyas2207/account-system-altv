@@ -1,10 +1,10 @@
 import * as alt from 'alt-server';
 import * as bcrypt from 'bcryptjs';
 import { defaultParameters } from './config/ServerConfig'
-import { Account } from './database/database'
-import { AccountDBService } from './DataBase_classes/AccountDBService';
+import { Account } from './database/Database'
+import { AccountDBRepository } from './dataBaseRepositories/AccountDBRepository';
 
-import { ClientError } from './ClientError'
+import { ClientError } from './errors/ClientError'
 
 interface IPlayerSession {
     accountId: number;
@@ -15,7 +15,7 @@ export class AccountManager {
     //map которая хранит в себе игроков которые в данный момент находятся на сервере и которые вошли в аккаунт
     private allLoginnedPlayers: Map <alt.Player, IPlayerSession> = new Map <alt.Player, IPlayerSession>();
     
-    constructor( private readonly accountDBService: AccountDBService){
+    constructor( private readonly accountDBRepository: AccountDBRepository){
     }
 
     async onAccountEnterAttempt(player: alt.Player, playerLogin: string, playerPassword: string): Promise<void> {
@@ -27,7 +27,7 @@ export class AccountManager {
             throw new ClientError('Данный аккаунт уже используется');
         }
 
-        const currentPlayerDBData = await this.accountDBService.getDataByAccountLogin(playerLogin);
+        const currentPlayerDBData = await this.accountDBRepository.getDataByAccountLogin(playerLogin);
 
         if( (!currentPlayerDBData) || !(await bcrypt.compare(playerPassword, currentPlayerDBData.password))){
             throw new ClientError('Введен некорректный логин или пароль');
@@ -43,7 +43,7 @@ export class AccountManager {
         if(this.checkIsPlayerLoggedIn(player)){
             throw new ClientError('Вы уже находитесь в аккаунте');
         }
-        if( await this.accountDBService.getDataByAccountLogin(playerLogin) !== undefined){
+        if( await this.accountDBRepository.getDataByAccountLogin(playerLogin) !== undefined){
             throw new ClientError('Данный логин недоступен');
         }
         if(playerPassword !== playerRepeatPassword) {
@@ -52,7 +52,7 @@ export class AccountManager {
         const saltRounds = 4;
         const hashedPassword = await bcrypt.hash(playerPassword, saltRounds);
 
-        await this.accountDBService.insertNewRow({login: playerLogin, password: hashedPassword, money: defaultParameters.defaultAccountMoney});
+        await this.accountDBRepository.insertNewRow({login: playerLogin, password: hashedPassword, money: defaultParameters.defaultAccountMoney});
         //автоматичский вход в аккаунт если игрок только что зарегестрировался
         await this.onAccountEnterAttempt(player, playerLogin, playerPassword);
     }
@@ -63,9 +63,9 @@ export class AccountManager {
         return currentPlayerAccountId;
     }
 
-    async requestPlayerDBData(player: alt.Player): Promise<Account | undefined> {
+    async requestPlayerDBData(player: alt.Player): Promise<Account> {
         const currentPlayerAccountId = this.requestPlayerAccountId(player);
-        const currentPlayerDBData = await this.accountDBService.getRowByPrimaryKey(currentPlayerAccountId!);
+        const currentPlayerDBData = await this.accountDBRepository.getRowByPrimaryKey(currentPlayerAccountId!);
         if(!currentPlayerDBData){
             throw new Error('Не удалось получить данные об игроке');
         }
@@ -92,14 +92,5 @@ export class AccountManager {
             return;
         }
         this.allLoginnedPlayers.delete(player);     
-    }
-
-    //дебаг команда, команда потом убрать
-    printAllLoginnedPlayers(): void {
-        alt.log('Весь allLoginnedPlayers');
-        this.allLoginnedPlayers.forEach((value, key) => {
-            alt.log(`Ключ: ${(key)}`);
-            alt.log('value:', (value));
-        });
     }
 }
