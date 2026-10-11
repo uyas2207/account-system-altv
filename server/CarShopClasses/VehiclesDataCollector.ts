@@ -9,6 +9,8 @@ import { SpawnedVehsManager } from "../SpawnedVehsManager";
 import { Vehicles } from '../database/database'
 import { IVehData } from "../config/types/IVehData";
 
+import { ClientError } from '../ClientError'
+
 export class VehiclesDataCollector {
     constructor(
         private readonly accoutManager: AccountManager,
@@ -16,6 +18,16 @@ export class VehiclesDataCollector {
         private readonly vehiclesManager: SpawnedVehsManager,
         private readonly vehiclesForSaleManager: VehiclesForSaleManager
     ){
+    }
+
+    checkVehicleAndCollectData(player: alt.Player){
+        const veh = this.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+        this.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
+        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
+        if(!vehId){
+            throw new Error("Произошла ошибка при получении данных машины");
+        }
+        return {veh, vehId};
     }
 
     getPlayerVehData(player: alt.Player, veh: alt.Vehicle): IVehData {
@@ -41,7 +53,7 @@ export class VehiclesDataCollector {
         const accountId = this.accoutManager.requestPlayerAccountId(player);
         const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
         if(accountId !== vehOwnerId){
-            throw new Error ("Вы не являетесь владельцем авто");
+            throw new ClientError("Вы не являетесь владельцем авто");
         }
         return accountId;//нет смысла возврщать и accountId и vehOwnerId так как они прошли проверку => одинаковые
     }
@@ -50,7 +62,7 @@ export class VehiclesDataCollector {
     checkIsPlayerInVehicle(player: alt.Player): alt.Vehicle {
         const veh = player.vehicle;
         if(!veh){
-            throw new Error("Для использования команды необходимо находитсья в машине");
+            throw new ClientError("Для использования команды необходимо находитсья в машине");
         }
         return veh;
     }

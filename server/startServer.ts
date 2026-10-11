@@ -11,6 +11,7 @@ import { VehicleDBService } from './DataBase_classes/VehicletDBService';
 import { CarShopDBIntreractor } from "./CarShopClasses/CarShopDBIntreractor";
 import { VehiclesForSaleManager } from "./CarShopClasses/VehiclesForSaleManager";
 import { VehiclesDataCollector } from "./CarShopClasses/VehiclesDataCollector";
+import { PlayerVehicleAppearance } from './PlayerVehicleAppearance'
 
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 
@@ -25,7 +26,7 @@ class StartServer {
     private readonly commandManager: CommandManager;
     private readonly carShopServer: CarShopServer;
     private readonly spawnedVehsManager: SpawnedVehsManager;
-
+    private readonly playerVehicleAppearance: PlayerVehicleAppearance;
 
     constructor()
     {
@@ -36,20 +37,16 @@ class StartServer {
         this.vehiclesForSaleManager = new VehiclesForSaleManager(vehiclesForSaleList);
         this.accoutManager = new AccountManager(this.accountDBService);
         this.vehiclesDataCollector = new VehiclesDataCollector(this.accoutManager, this.vehicleDBService, this.spawnedVehsManager, this.vehiclesForSaleManager)
+        this.playerVehicleAppearance = new PlayerVehicleAppearance(this.vehicleDBService, this.vehiclesDataCollector);
         this.carShopServer = new CarShopServer(this.vehicleDBService, this.carShopDBIntreractor, this.spawnedVehsManager, this.vehiclesForSaleManager, this.vehiclesDataCollector);
-        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer);
+        this.commandManager = new CommandManager(this.accoutManager, this.carShopServer, this.playerVehicleAppearance);
 
         this._init();
     }
 
     private _init(): void {
         alt.on('resourceStart', async () => {
-            try{
-                this.vehiclesForSaleManager.createVehiclesForSale();
-            }
-            catch(error){
-
-            }
+            this.vehiclesForSaleManager.createVehiclesForSale();
         });
 
         alt.on('playerConnect', async (player) => {

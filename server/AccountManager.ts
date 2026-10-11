@@ -1,8 +1,10 @@
 import * as alt from 'alt-server';
-import { defaultParameters } from './config/VehConfig'
+import * as bcrypt from 'bcryptjs';
+import { defaultParameters } from './config/ServerConfig'
 import { Account } from './database/database'
-
 import { AccountDBService } from './DataBase_classes/AccountDBService';
+
+import { ClientError } from './ClientError'
 
 interface IPlayerSession {
     accountId: number;
@@ -19,18 +21,18 @@ export class AccountManager {
     async onAccountEnterAttempt(player: alt.Player, playerLogin: string, playerPassword: string): Promise<void> {
         
         if(this.allLoginnedPlayers.has(player)){
-            throw new Error('Вы уже находитесь в аккаунте');
+            throw new ClientError('Вы уже находитесь в аккаунте');
         }
         if(this.allLoginnedPlayers.values().some(session => session.login === playerLogin)){
-            throw new Error('Данный аккаунт уже используется');
+            throw new ClientError('Данный аккаунт уже используется');
         }
 
         const currentPlayerDBData = await this.accountDBService.getDataByAccountLogin(playerLogin);
-        
-        if( (!currentPlayerDBData) || (currentPlayerDBData.password !== playerPassword)){
-            throw new Error('Введен некорректный логин или пароль');
+
+        if( (!currentPlayerDBData) || !(await bcrypt.compare(playerPassword, currentPlayerDBData.password))){
+            throw new ClientError('Введен некорректный логин или пароль');
         }
-        
+
         this.allLoginnedPlayers.set(player, {
             accountId: currentPlayerDBData.accountId,
             login: playerLogin
@@ -39,16 +41,18 @@ export class AccountManager {
 
     async onAccountRegisterAttempt(player: alt.Player, playerLogin: string, playerPassword: string, playerRepeatPassword: string): Promise<void> {
         if(this.checkIsPlayerLoggedIn(player)){
-            throw new Error('Вы уже находитесь в аккаунте');
+            throw new ClientError('Вы уже находитесь в аккаунте');
         }
         if( await this.accountDBService.getDataByAccountLogin(playerLogin) !== undefined){
-            throw new Error('Данный логин не достпуен');
+            throw new ClientError('Данный логин недоступен');
         }
         if(playerPassword !== playerRepeatPassword) {
-            throw new Error('Пароли на совпадают');
+            throw new ClientError('Пароли на совпадают');
         }
+        const saltRounds = 4;
+        const hashedPassword = await bcrypt.hash(playerPassword, saltRounds);
 
-        await this.accountDBService.insertNewRow({login: playerLogin, password: playerPassword, money: defaultParameters.defaultAccountMoney});
+        await this.accountDBService.insertNewRow({login: playerLogin, password: hashedPassword, money: defaultParameters.defaultAccountMoney});
         //автоматичский вход в аккаунт если игрок только что зарегестрировался
         await this.onAccountEnterAttempt(player, playerLogin, playerPassword);
     }
@@ -70,7 +74,7 @@ export class AccountManager {
 
     requestPlayerAccountId(player: alt.Player): number {
         if(!this.allLoginnedPlayers.has(player)){
-            throw new Error('Для этого дейтсвия необходимой войти в аккаунт');
+            throw new ClientError('Для этого дейтсвия необходимой войти в аккаунт');
         }
         const currentPlayerAccountId = this.allLoginnedPlayers.get(player)?.accountId;
         if(!currentPlayerAccountId){

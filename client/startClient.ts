@@ -57,14 +57,14 @@ class CarShopClient {
         this._toogleVehicleAvailability(entity, false);
         
         const coords = this._calculateVehicleTextCoords(entity);
-        const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
-        const configData = vehiclesForSaleList[index];
+        const model = native.getDisplayNameFromVehicleModel(entity.model);
+        const configData = this._findVehPriceInConfig(model ?? "");
 
         if(!configData){
             alt.logError(`Не удалось найти машину в конфиге`);
             return;
         }
-        this.carShopVisuals.createTextLabel(coords, configData, entity.rot, index);
+        this.carShopVisuals.createTextLabel(coords, configData?.element, entity.rot, configData?.index);
     }
 
     private _toogleVehicleAvailability(entity: alt.Vehicle, vehicleAvailabilityState: boolean): void{
@@ -83,8 +83,12 @@ class CarShopClient {
         const expectedZ = entity.pos.z + 0.5;
         return new alt.Vector3(expectedX, expectedY, expectedZ);
     }
-    //если потом придется перейти на поиск машины в конфиге а не использование index из StreamSyncedMeta
+    //ищет в конфиге авто с таким же названием и берет его данные
     private _findVehPriceInConfig(model: string){
+        if(model === ""){
+            alt.logError("Переданно некорректное название модели авто");
+            return;
+        }
         for (let index = 0; index < vehiclesForSaleList.length; index++) {
             const element = vehiclesForSaleList[index];
             if(element?.model.toLowerCase() === model.toLowerCase()){

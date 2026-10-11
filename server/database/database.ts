@@ -19,8 +19,8 @@ export type Account = Selectable<AccountTable>;
 /*
 CREATE TABLE account (
     accountId INT AUTO_INCREMENT PRIMARY KEY,
-    login VARCHAR(50) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
+    login VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL UNIQUE,
+    password VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
     registrationDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     money INT NOT NULL
 );
@@ -44,7 +44,7 @@ CREATE TABLE vehicles (
     model VARCHAR(50) NOT NULL,
     primaryColor INT NOT NULL,
     secondaryColor INT NOT NULL,
-    registrationNumber VARCHAR(50) UNIQUE,
+    registrationNumber VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin UNIQUE,
     price INT,
     CONSTRAINT vehicle_owner FOREIGN KEY (ownerId) REFERENCES account(accountId) ON DELETE CASCADE
 ); 

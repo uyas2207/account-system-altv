@@ -1,4 +1,4 @@
-import { Kysely, Insertable, Transaction, InsertResult, DeleteResult } from 'kysely';
+import { Kysely, Insertable, Transaction, InsertResult, DeleteResult, UpdateResult } from 'kysely';
 import { Database, VehiclesTable, VehiclesUpdate, Vehicles } from '../database/database'
 
 export class VehicleDBService {
@@ -20,28 +20,32 @@ export class VehicleDBService {
         const executor = trx || this._db;
         return await executor
             .deleteFrom('vehicles').where('vehId', '=', primaryKeyValue).executeTakeFirst();
+
     }
 
-    async insertNewRow(values: Insertable<VehiclesTable>, trx?: Transaction<Database>): Promise<InsertResult[]> {
+    async insertNewRow(values: Insertable<VehiclesTable>, trx?: Transaction<Database>): Promise<InsertResult> {
         const executor = trx || this._db;
         return await executor
             .insertInto('vehicles')
             .values(values)
-            .execute();
+            .executeTakeFirst();
     }
 
-    async updateRegistrationNumberByPrimaryKey(primaryKeyValue: number, registrationNumberValue: string): Promise<void> {
-        await this._db
+    async updateRegistrationNumberByPrimaryKey(primaryKeyValue: number, registrationNumberValue: string): Promise<UpdateResult> {
+        return await this._db
             .updateTable('vehicles')
             .set({'registrationNumber': registrationNumberValue})
-            .where('vehId', '=', primaryKeyValue).execute();
+            .where('vehId', '=', primaryKeyValue).executeTakeFirst();
     }
 
-    async updateColorsByPrimaryKey(primaryKeyValue: number, updateWith: VehiclesUpdate): Promise<void> {
-        await this._db
+    async updateColorsByPrimaryKey(primaryKeyValue: number, primaryColor: number, secondaryColor: number): Promise<UpdateResult> {
+        return await this._db
             .updateTable('vehicles')
-            .set(updateWith)
-            .where('vehId', '=', primaryKeyValue).execute();
+            .set({            
+                primaryColor: primaryColor,
+                secondaryColor: secondaryColor
+            })
+            .where('vehId', '=', primaryKeyValue).executeTakeFirst();
     }
 
     async getAllVehsByAccountId(accountId: Vehicles['ownerId']): Promise<Vehicles[]> {

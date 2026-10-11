@@ -1,15 +1,17 @@
 import alt from 'alt-server';
 
-import { Kysely, Transaction } from 'kysely';
+import { Kysely, Transaction, UpdateResult } from 'kysely';
 
 import { Database } from '../database/database';
 import { AccountDBService } from "../DataBase_classes/AccountDBService";
 import { VehicleDBService } from "../DataBase_classes/VehicletDBService";
 
-import { defaultParameters } from '../config/VehConfig'
+import { defaultParameters } from '../config/ServerConfig'
 
 import { Vehicles } from "../database/database";
 import { IVehData } from "../config/types/IVehData";
+
+import { ClientError } from '../ClientError'
 
 export class CarShopDBIntreractor{
     protected readonly _db: Kysely<Database>
@@ -26,32 +28,27 @@ export class CarShopDBIntreractor{
         this.vehicle = vehicleDBService;
     }
 
-    async sellVehicleTransaction(data:IVehData, vehId: number){
-        const resultMoney = await this._transaction(async (trx) => {
-            const currentPlayerMoney = await this.account.getMoneyByPrimaryKey(data.accountId, trx);
-            if(typeof currentPlayerMoney !== "number"){
-                throw new Error("Не удалось получить кол-во денег на аккаунте");
+    async sellVehicleTransaction(data:IVehData, vehId: number): Promise<number | undefined>{
+       const moneyAfterTransaction = await this._transaction(async (trx) => {
+            const deleteResult = await this.vehicle.deleteRowByPrimaryKey(vehId, trx);
+            if(deleteResult.numDeletedRows === 0n){
+                throw new ClientError("Операция с этой машиной недоступна в данный момент");
             }
-            const resultMoney = Math.trunc(currentPlayerMoney + (data.price * defaultParameters.percentageForSell));
-            await this.vehicle.deleteRowByPrimaryKey(vehId, trx);
-            await this.account.updateMoneyByPrimaryKey(data.accountId, resultMoney, trx);
-            return resultMoney;
+            const sellingPrice = Math.trunc(data.price * defaultParameters.percentageForSell);
+            await this.account.giveMoneyByPrimaryKey(data.accountId, sellingPrice, trx);
+
+            return await this.account.getMoneyByPrimaryKey(data.accountId, trx);
         });
-        return resultMoney;
+        return moneyAfterTransaction;
+        
     }
 
-    async purchaseVehicleTransaction(data:IVehData, veh: alt.Vehicle){
+    async purchaseVehicleTransaction(data:IVehData, veh: alt.Vehicle): Promise<bigint | undefined> {
         const vehDBId = await this._transaction(async (trx) => {
-            const playerMoney = await this.account.getMoneyByPrimaryKey(data.accountId, trx);
-            if (typeof playerMoney !== "number") {
-                throw new Error(`Игрок с ID ${data.accountId} не найден в базе данных`);
+            const takeMoneyResult = await this.account.takeMoneyByPrimaryKey(data.accountId, data.price, trx);
+            if (takeMoneyResult.numUpdatedRows === 0n){
+                throw new ClientError("Недостаточно денег на аккаунте");
             }
-            if(playerMoney < data.price){
-                throw new Error("На аккаунте недостаточно денег");
-            }
-
-            const moneyAfterOperation = playerMoney - data.price;
-            await this.account.updateMoneyByPrimaryKey(data.accountId, moneyAfterOperation, trx);
             const result = await this.vehicle.insertNewRow({
                 ownerId: data.accountId,
                 model: data.model,
@@ -59,22 +56,21 @@ export class CarShopDBIntreractor{
                 secondaryColor: veh.secondaryColor,
                 price: data.price
             }, trx);
-
             return result;
         });
 
-        return vehDBId[0]?.insertId;
+        return vehDBId.insertId;
     }
 
-    async getVehicleRowByPrimaryKey(vehId: number){
+    async getVehicleRowByPrimaryKey(vehId: number): Promise<Vehicles | undefined> {
         return await this.vehicle.getRowByPrimaryKey(vehId);
     }
 
-    async updateVehicleRegistrationNumberByPrimaryKey(vehId: number, text: string){
+    async updateVehicleRegistrationNumberByPrimaryKey(vehId: number, text: string): Promise<UpdateResult>{
         return await this.vehicle.updateRegistrationNumberByPrimaryKey(vehId, text);
     }
 
-    async updateVehicleColorsByPrimaryKey(vehId: number, row: Vehicles){
+    async updateVehicleColorsByPrimaryKey(vehId: number, row: Vehicles): Promise<UpdateResult>{
         return await this.vehicle.updateColorsByPrimaryKey(vehId, row);
     }
 

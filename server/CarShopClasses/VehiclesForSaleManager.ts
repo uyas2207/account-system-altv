@@ -2,7 +2,7 @@ import alt from 'alt-server';
 
 import { checkIsModelValid } from '../utilitiesServer'
 
-import { defaultParameters, vehicleSpawnCoords } from '../config/VehConfig'
+import { defaultParameters, vehicleSpawnCoords } from '../config/ServerConfig'
 import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
 
 export class VehiclesForSaleManager {
@@ -21,17 +21,18 @@ export class VehiclesForSaleManager {
                 const rotation = vehicleSpawnCoords[index]?.rotation;
 
                 if(!position || !rotation){
-                    throw new Error("Неправильные данные в конфиге");
+                    alt.logError(`Неправильные данные в конфиге position= ${position} rotation = ${rotation}`);
+                    return;
                 }
 
                 const veh = new alt.Vehicle(model!, position, rotation);
                 veh.primaryColor = this.config[index]?.primaryColor ?? 0;
                 veh.secondaryColor = this.config[index]?.secondaryColor ?? 0;
                 veh.numberPlateText = "_";
-                veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
+                this.addCarForSaleSyncedMeta(veh, index);
             }
             else{
-                alt.logError("Передано неправильное значение model из конфига по индексу =", index);
+                alt.logError(`Передано неправильное значение model из конфига по индексу = ${index} модель = ${model}`);
             }
         }
     }
@@ -47,9 +48,13 @@ export class VehiclesForSaleManager {
         return foundCar?.price;
     }
 
-    removeCarForSaleSyncedMeta(vehicle: alt.Vehicle){
+    removeCarForSaleSyncedMeta(vehicle: alt.Vehicle): void{
         if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
             vehicle.deleteStreamSyncedMeta('CarForSaleId');
         }
+    }
+
+    addCarForSaleSyncedMeta(veh: alt.Vehicle, index: number): void{
+        veh.setStreamSyncedMeta('CarForSaleId', index); //inex в syncMeta это место с данными по машине в массиве шаред конфига
     }
 }
