@@ -1,10 +1,10 @@
 import * as alt from 'alt-server';
 import * as bcrypt from 'bcryptjs';
-import { defaultParameters } from './config/ServerConfig'
-import { Account } from './database/Database'
-import { AccountDBRepository } from './dataBaseRepositories/AccountDBRepository';
+import { defaultParameters } from './Config/ServerConfig'
+import { Account } from './Database/Database'
+import { AccountDBRepository } from './DataBaseRepositories/AccountDBRepository';
 
-import { ClientError } from './errors/ClientError'
+import { ClientError } from './Errors/ClientError'
 
 interface IPlayerSession {
     accountId: number;

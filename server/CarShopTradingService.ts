@@ -1,28 +1,28 @@
 import alt from 'alt-server';
 
 import { SpawnedVehsManager } from './SpawnedVehsManager'
-import { VehiclesForSaleManager } from "./VehiclesForSaleManager";
+import { VehiclesForSaleRegistry} from "./VehiclesForSaleRegistry";
 import { VehiclesDataCollector } from "./VehiclesDataCollector";
 import { CarShopDBIntreractor } from "./CarShopDBIntreractor";
 
 
-export class CarShopTradingManager {
+export class CarShopTradingService {
     constructor(
         private readonly carShopDBIntreractor: CarShopDBIntreractor,
         private readonly vehiclesManager: SpawnedVehsManager,
-        private readonly vehiclesForSaleManager: VehiclesForSaleManager,
+        private readonly vehiclesForSaleRegistry: VehiclesForSaleRegistry,
         private readonly vehiclesDataCollector: VehiclesDataCollector
     ){
     }
 
     async onCarPurchaseAttempt(player: alt.Player){
-        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
-        this.vehiclesForSaleManager.checkIsCarForSale(veh);
+        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.veh
+        this.vehiclesForSaleRegistry.checkIsCarForSale(veh);
         const data = this.vehiclesDataCollector.getPlayerVehData(player, veh);
         
         const vehDBId = await this.carShopDBIntreractor.purchaseVehicleTransaction(data, veh);
         return vehDBId;
-        //this.vehiclesForSaleManager.removeCarForSaleSyncedMeta(veh);
+        //this.vehiclesForSaleRegistry.removeCarForSaleSyncedMeta(veh);
     }
 
     async onCarSellAttempt(player: alt.Player){

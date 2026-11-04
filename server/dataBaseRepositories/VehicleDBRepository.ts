@@ -1,5 +1,5 @@
 import { Kysely, Insertable, Transaction, InsertResult, DeleteResult, UpdateResult } from 'kysely';
-import { Database, VehiclesTable, VehiclesUpdate, Vehicles } from '../database/Database'
+import { Database, VehiclesTable, VehiclesUpdate, Vehicles } from '../Database/Database'
 
 export class VehicleDBRepository {
     protected readonly _db: Kysely<Database>

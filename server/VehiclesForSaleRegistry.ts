@@ -1,11 +1,11 @@
 import alt from 'alt-server';
 
-import {checkIsModelValid} from './UtilitiesServer'
+import {checkIsModelValid} from './UtilsServer/UtilitiesServer'
 
-import { defaultParameters, vehicleSpawnCoords } from './config/ServerConfig'
-import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
+import { defaultParameters, vehicleSpawnCoords } from './Config/ServerConfig'
+import { IVehiclesForSaleList } from '@shared/Types/IVehiclesConfig'
 
-export class VehiclesForSaleManager {
+export class VehiclesForSaleRegistry {
     constructor(
         private readonly config: Array<IVehiclesForSaleList>
     ){
@@ -37,8 +37,8 @@ export class VehiclesForSaleManager {
         }
     }
 
-    checkIsCarForSale(vehicle: alt.Vehicle): void {
-        if(!vehicle.hasStreamSyncedMeta('CarForSaleId')){
+    checkIsCarForSale(veh: alt.Vehicle): void {
+        if(!veh.hasStreamSyncedMeta('CarForSaleId')){
             throw new Error('Этот автомобиль не продается');
         }
     }
@@ -48,9 +48,9 @@ export class VehiclesForSaleManager {
         return foundCar?.price;
     }
 
-    removeCarForSaleSyncedMeta(vehicle: alt.Vehicle): void{
-        if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
-            vehicle.deleteStreamSyncedMeta('CarForSaleId');
+    removeCarForSaleSyncedMeta(veh: alt.Vehicle): void{
+        if(veh.hasStreamSyncedMeta('CarForSaleId')){
+            veh.deleteStreamSyncedMeta('CarForSaleId');
         }
     }
 

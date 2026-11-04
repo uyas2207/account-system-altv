@@ -1,4 +1,4 @@
-import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
+import { IVehiclesForSaleList } from '@shared/Types/IVehiclesConfig'
 
 export const vehiclesForSaleList: Array<IVehiclesForSaleList> = [
     {
@@ -11,7 +11,7 @@ export const vehiclesForSaleList: Array<IVehiclesForSaleList> = [
         model: "benson",
         primaryColor: 1,
         secondaryColor:22,
-        price: 333
+        price: -111
     },
     {
         model: "avisa",

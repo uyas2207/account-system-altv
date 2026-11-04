@@ -2,20 +2,20 @@ import alt from 'alt-server';
 
 import { Kysely, Transaction, UpdateResult } from 'kysely';
 
-import { Database } from './database/Database';
-import { AccountDBRepository } from "./dataBaseRepositories/AccountDBRepository";
-import { VehicleDBRepository } from "./dataBaseRepositories/VehicleDBRepository";
+import { Database } from './Database/Database';
+import { AccountDBRepository } from "./DataBaseRepositories/AccountDBRepository";
+import { VehicleDBRepository } from "./DataBaseRepositories/VehicleDBRepository";
 
-import { defaultParameters } from './config/ServerConfig'
+import { defaultParameters } from './Config/ServerConfig'
 
-import { IVehData } from "./config/types/IVehData";
+import { IVehData } from "./Config/Types/IVehData";
 
-import { ClientError } from './errors/ClientError'
+import { ClientError } from './Errors/ClientError'
 
 export class CarShopDBIntreractor{
     protected readonly _db: Kysely<Database>
     public readonly account: AccountDBRepository;
-    public readonly vehicle : VehicleDBRepository;
+    public readonly veh : VehicleDBRepository;
 
     constructor(
         db: Kysely<Database>,
@@ -24,12 +24,12 @@ export class CarShopDBIntreractor{
     ){
         this._db = db;
         this.account = accountDBRepository;
-        this.vehicle = vehicleDBRepository;
+        this.veh = vehicleDBRepository;
     }
 
     async sellVehicleTransaction(data:IVehData, vehId: number): Promise<number | undefined>{
        const moneyAfterTransaction = await this._transaction(async (trx) => {
-            const deleteResult = await this.vehicle.deleteRowByPrimaryKey(vehId, trx);
+            const deleteResult = await this.veh.deleteRowByPrimaryKey(vehId, trx);
             if(deleteResult.numDeletedRows === 0n){
                 throw new ClientError("Операция с этой машиной недоступна в данный момент"); //машина уже продана
             }
@@ -48,7 +48,7 @@ export class CarShopDBIntreractor{
             if (takeMoneyResult.numUpdatedRows === 0n){
                 throw new ClientError("Недостаточно денег на аккаунте");
             }
-            const result = await this.vehicle.insertNewRow({
+            const result = await this.veh.insertNewRow({
                 ownerId: data.accountId,
                 model: data.model,
                 primaryColor: veh.primaryColor,

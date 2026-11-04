@@ -1,6 +1,6 @@
 import * as alt from 'alt-client';
 
-import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
+import { IVehiclesForSaleList } from '@shared/Types/IVehiclesConfig'
 
 import { visualTextLabelConfig } from "./ConfigClient/ConfigClient";
 

@@ -1,17 +1,17 @@
 import * as alt from 'alt-server';
 const chat = require('alt:chat'); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 
-import { CarShopTradingManager } from '../CarShopTradingManager'
+import { CarShopTradingService } from '../CarShopTradingService'
 import { AccountManager } from '../AccountManager'
 
-import { ClientError } from '../errors/ClientError'
-import { defaultParameters } from '../config/ServerConfig'
+import { ClientError } from '../Errors/ClientError'
+import { defaultParameters } from '../Config/ServerConfig'
 import { PlayerVehicleService } from '../PlayerVehicleService';
 
 export class CommandManager {    
     constructor(
         private readonly accoutManager: AccountManager,
-        private readonly CarShopTradingManager: CarShopTradingManager,
+        private readonly carShopTradingService: CarShopTradingService,
         private readonly playerVehicleService: PlayerVehicleService,
     ){
         this._registerCommands();
@@ -21,7 +21,7 @@ export class CommandManager {
 
         chat.registerCmd('buy', async (player: alt.Player) => {
             try {
-                const vehDBId = await this.CarShopTradingManager.onCarPurchaseAttempt(player);
+                const vehDBId = await this.carShopTradingService.onCarPurchaseAttempt(player);
                 chat.send(player, `Машина успешно куплена, id машины: ${vehDBId}`);
             } catch (error) {
                 this._validateError(player, error);
@@ -30,7 +30,7 @@ export class CommandManager {
 
         chat.registerCmd('sellveh', async (player: alt.Player) => {
             try{
-                const moneyAfterTransaction = await this.CarShopTradingManager.onCarSellAttempt(player);
+                const moneyAfterTransaction = await this.carShopTradingService.onCarSellAttempt(player);
                 chat.send(player,`Вы успешно продали машину, денег на вашем аккаунте после продажи ${moneyAfterTransaction}`);
             }
             catch(error){

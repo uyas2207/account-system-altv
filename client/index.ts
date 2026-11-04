@@ -1,12 +1,10 @@
 import * as alt from 'alt-client';
 import native from 'natives'
 
-import { drawNotification } from './UtilitiesClient';
-
-import { vehiclesForSaleList } from '@shared/SharedConfig'
-
+import { drawNotification } from './UtilsClient/UtilitiesClient';
+import { wait } from "@shared/UtilsShared/UtilitiesShared";
 import { CarShopVisuals } from './CarShopVisuals'
-
+import { vehiclesForSaleList } from '@shared/SharedConfig'
 
 class CarShopClient {
     private readonly carShopVisuals: CarShopVisuals;
@@ -31,9 +29,9 @@ class CarShopClient {
             }
         });
 
-        alt.on('startEnteringVehicle', (vehicle, seat, player) => {
-            if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
-                const model = native.getDisplayNameFromVehicleModel(vehicle.model);
+        alt.on('startEnteringVehicle', (veh, seat, player) => {
+            if(veh.hasStreamSyncedMeta('CarForSaleId')){
+                const model = native.getDisplayNameFromVehicleModel(veh.model);
                 drawNotification(`/buy что бы купить машину ${model?.toLowerCase()}`);
             }
         });
@@ -52,7 +50,7 @@ class CarShopClient {
         //пока что костыль, почему то при тп в зону с авто их коордлинаты считаются 0, хотя все проверки на valid isspawned visible scriptID и т.д. говорят что авто заспанилось корректно
         //почему то все проверки говорят что авто норм, но координаты неправильны, поэтому добавил задержку перед спавном текста что бы он был на корректных координатах
         if(entity.pos.x === 0){
-            await new Promise(resolve => alt.setTimeout(resolve, 800));
+            await wait(800);
         }
         this._toogleVehicleAvailability(entity, false);
         

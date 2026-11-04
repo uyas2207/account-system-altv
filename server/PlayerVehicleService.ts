@@ -2,7 +2,7 @@ import alt from 'alt-server';
 
 import { VehiclesDataCollector } from './VehiclesDataCollector'
 import { SpawnedVehsManager } from './SpawnedVehsManager';
-import { VehicleDBRepository } from './dataBaseRepositories/VehicleDBRepository';
+import { VehicleDBRepository } from './DataBaseRepositories/VehicleDBRepository';
 
 export class PlayerVehicleService {
     constructor(

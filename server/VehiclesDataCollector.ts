@@ -1,27 +1,27 @@
 import alt from 'alt-server';
 
 import { AccountManager } from './AccountManager'
-import { VehicleDBRepository } from './dataBaseRepositories/VehicleDBRepository'
-import { VehiclesForSaleManager } from "./VehiclesForSaleManager";
+import { VehicleDBRepository } from './DataBaseRepositories/VehicleDBRepository'
+import { VehiclesForSaleRegistry} from "./VehiclesForSaleRegistry";
 
 import { SpawnedVehsManager } from "./SpawnedVehsManager";
 
-import { Vehicles } from './database/Database'
-import { IVehData } from "./config/types/IVehData";
+import { Vehicles } from './Database/Database'
+import { IVehData } from "./Config/Types/IVehData";
 
-import { ClientError } from './errors/ClientError'
+import { ClientError } from './Errors/ClientError'
 
 export class VehiclesDataCollector {
     constructor(
         private readonly accoutManager: AccountManager,
         private readonly vehicleDBRepository: VehicleDBRepository,
         private readonly vehiclesManager: SpawnedVehsManager,
-        private readonly vehiclesForSaleManager: VehiclesForSaleManager
+        private readonly vehiclesForSaleRegistry: VehiclesForSaleRegistry
     ){
     }
 
     checkVehicleOwnershipAndCollectData(player: alt.Player){
-        const veh = this.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+        const veh = this.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.veh
         this.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
         const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
         if(!vehId){
@@ -33,7 +33,7 @@ export class VehiclesDataCollector {
     getPlayerVehData(player: alt.Player, veh: alt.Vehicle): IVehData {
         const accountId = this.accoutManager.requestPlayerAccountId(player);
         const model = (alt.getVehicleModelInfoByHash(veh.model).title);
-        const price = this.vehiclesForSaleManager.findVehPriceInConfig(model);
+        const price = this.vehiclesForSaleRegistry.findVehPriceInConfig(model);
 
         //пытался вынести проверку в findVehPriceInConfig, но ts выдавал ошибку поэтому проверка тут
         if(!price){
@@ -67,9 +67,9 @@ export class VehiclesDataCollector {
         return accountId;//нет смысла возврщать и accountId и vehOwnerId так как они прошли проверку => одинаковые
     }
 
-    //если игрок не в авто Error, если в авто вернет player.vehicle
+    //если игрок не в авто Error, если в авто вернет player.veh
     checkIsPlayerInVehicle(player: alt.Player): alt.Vehicle {
-        const veh = player.vehicle;
+        const veh = player.veh;
         if(!veh){
             throw new ClientError("Для использования команды необходимо находитсья в машине");
         }
