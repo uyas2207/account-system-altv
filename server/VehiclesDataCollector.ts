@@ -3,8 +3,7 @@ import alt from 'alt-server';
 import { AccountManager } from './AccountManager'
 import { VehicleDBRepository } from './DataBaseRepositories/VehicleDBRepository'
 import { VehiclesForSaleRegistry} from "./VehiclesForSaleRegistry";
-
-import { SpawnedVehsManager } from "./SpawnedVehsManager";
+import { PlayerVehiclesRepository } from "./SrverDataRepositories/PlayerVehiclesRepository";
 
 import { Vehicles } from './Database/Database'
 import { IVehData } from "./Config/Types/IVehData";
@@ -15,18 +14,21 @@ export class VehiclesDataCollector {
     constructor(
         private readonly accoutManager: AccountManager,
         private readonly vehicleDBRepository: VehicleDBRepository,
-        private readonly vehiclesManager: SpawnedVehsManager,
-        private readonly vehiclesForSaleRegistry: VehiclesForSaleRegistry
+        private readonly vehiclesForSaleRegistry: VehiclesForSaleRegistry,
+        private readonly playerVehiclesRepository: PlayerVehiclesRepository
     ){
     }
 
     checkVehicleOwnershipAndCollectData(player: alt.Player){
-        const veh = this.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.veh
-        this.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
-        const vehId = this.vehiclesManager.getSpawnedVehicleId(veh);
-        if(!vehId){
-            throw new Error("Произошла ошибка при получении данных машины");
+        const veh = this.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicle
+        if(!this.playerVehiclesRepository.hasVeh(veh)){
+            throw new ClientError("С этой машиной нельзя выполнить эту операцию");
         }
+        const vehId = this.playerVehiclesRepository.getVehId(veh);
+        if(!vehId){
+            throw new Error("Не удалось получить данные об id машины, даже после playerVehiclesRepository.hasVeh(veh)");
+        }
+        this.chechkVehicleOwner(player, veh);   //если игрок не владелец авто будет Error, если владелец вернет вернет vehOwnerId
         return {veh, vehId};
     }
 
@@ -37,7 +39,7 @@ export class VehiclesDataCollector {
 
         //пытался вынести проверку в findVehPriceInConfig, но ts выдавал ошибку поэтому проверка тут
         if(!price){
-            alt.logError("Попытка купить машину которой нет в конфиге model:", model);
+            alt.logError("[CarShop] Попытка купить машину которой нет в конфиге model:", model);
             throw new Error("Нет корректной цены у машины");  
         }
         return({ accountId, model, price});
@@ -60,20 +62,19 @@ export class VehiclesDataCollector {
 
     chechkVehicleOwner(player: alt.Player, veh: alt.Vehicle): number{
         const accountId = this.accoutManager.requestPlayerAccountId(player);
-        const vehOwnerId = this.vehiclesManager.getSpawnedVehicleOwnerId(veh);
+        const vehOwnerId = this.playerVehiclesRepository.getVehOwnerId(veh);
         if(accountId !== vehOwnerId){
             throw new ClientError("Вы не являетесь владельцем авто");
         }
         return accountId;//нет смысла возврщать и accountId и vehOwnerId так как они прошли проверку => одинаковые
     }
 
-    //если игрок не в авто Error, если в авто вернет player.veh
+    //если игрок не в авто Error, если в авто вернет player.vehicle
     checkIsPlayerInVehicle(player: alt.Player): alt.Vehicle {
-        const veh = player.veh;
+        const veh = player.vehicle;
         if(!veh){
             throw new ClientError("Для использования команды необходимо находитсья в машине");
         }
         return veh;
     }
-    
 }

@@ -1,9 +1,8 @@
 import alt from 'alt-server';
 
-import {checkIsModelValid} from './UtilsServer/UtilitiesServer'
-
 import { defaultParameters, vehicleSpawnCoords } from './Config/ServerConfig'
 import { IVehiclesForSaleList } from '@shared/Types/IVehiclesConfig'
+import { ClientError } from './Errors/ClientError';
 
 export class VehiclesForSaleRegistry {
     constructor(
@@ -15,31 +14,26 @@ export class VehiclesForSaleRegistry {
         for (let index = 0; index < Math.min(defaultParameters.numberOfCarsForSale, vehicleSpawnCoords.length); index++) { 
             
             const model = this.config[index]?.model;
-           
-            if(checkIsModelValid(model ?? "")){
-                const position = vehicleSpawnCoords[index]?.position;
-                const rotation = vehicleSpawnCoords[index]?.rotation;
+            const position = vehicleSpawnCoords[index]?.position;
+            const rotation = vehicleSpawnCoords[index]?.rotation;
 
-                if(!position || !rotation){
-                    alt.logError(`Неправильные данные в конфиге position= ${position} rotation = ${rotation}`);
-                    return;
-                }
+            if(!position || !rotation){
+                alt.logError(`[CarShop] Неправильные данные в конфиге position= ${position} rotation = ${rotation}`);
+                return;
+            }
 
-                const veh = new alt.Vehicle(model!, position, rotation);
-                veh.primaryColor = this.config[index]?.primaryColor ?? 0;
-                veh.secondaryColor = this.config[index]?.secondaryColor ?? 0;
-                veh.numberPlateText = "_";
-                this.addCarForSaleSyncedMeta(veh, index);
-            }
-            else{
-                alt.logError(`Передано неправильное значение model из конфига по индексу = ${index} модель = ${model}`);
-            }
+            const veh = new alt.Vehicle(model!, position, rotation);
+            veh.primaryColor = this.config[index]?.primaryColor ?? 0;
+            veh.secondaryColor = this.config[index]?.secondaryColor ?? 0;
+            veh.numberPlateText = "_";
+            this.addCarForSaleSyncedMeta(veh, index);
+            
         }
     }
 
     checkIsCarForSale(veh: alt.Vehicle): void {
         if(!veh.hasStreamSyncedMeta('CarForSaleId')){
-            throw new Error('Этот автомобиль не продается');
+            throw new ClientError("Этот автомобиль не продается");
         }
     }
 

@@ -172,10 +172,10 @@ export class CommandManager {
         if (error instanceof Error) {
             const text = error.message;
             switch (true) {
-                case text.includes("connect"): return "Ошибка с подключением к БД";
+                case text.includes("connect"): return "Ошибка подключения к базе данных";
                 case text.includes("Duplicate entry"): return "Данное значение недоступно";
             }
         }
-        alt.logError("Произошла ошибка, но ее не надо показывать клиенту:", error);
+        alt.logError("[CarShop] Произошла ошибка, но ее не надо показывать клиенту:", error);
     }
 }

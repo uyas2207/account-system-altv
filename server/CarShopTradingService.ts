@@ -16,7 +16,7 @@ export class CarShopTradingService {
     }
 
     async onCarPurchaseAttempt(player: alt.Player){
-        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.veh
+        const veh = this.vehiclesDataCollector.checkIsPlayerInVehicle(player); //если игрок не в авто Error, если в авто вернет player.vehicleicle
         this.vehiclesForSaleRegistry.checkIsCarForSale(veh);
         const data = this.vehiclesDataCollector.getPlayerVehData(player, veh);
         
@@ -30,7 +30,7 @@ export class CarShopTradingService {
         const data = this.vehiclesDataCollector.getPlayerVehData(player, collectedData.veh);
         
         const moneyAfterTransaction = await this.carShopDBIntreractor.sellVehicleTransaction(data, collectedData.vehId);
-        this.vehiclesManager.checkVehicleBeforeDestroy(collectedData.veh);
+        this.vehiclesManager.safeDestroyPlayerVehicle(collectedData.veh);
         return moneyAfterTransaction;
     }
 

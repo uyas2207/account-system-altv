@@ -36,3 +36,10 @@ export const defaultParameters = {
     defaultDespawnTimer: 120000,   //120000           //через сколько ms без водителя машина удалится
     defaultErrorMessage: "Произошла непредвиденная ошибка"  //какое сообщение будет показываться игроку если произойдет ошибка не для клиента
 };
+
+export const configValidationParameters = {
+    maxPrice: 100000,
+    minPrice: 100,
+    maxColorNum: 160,
+    minColorNum: 0
+}

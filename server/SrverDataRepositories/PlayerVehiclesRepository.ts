@@ -13,6 +13,14 @@ export class PlayerVehiclesRepository {
         return this._allSpawnedVehicles.get(veh);
     }
 
+    getVehId(veh: alt.Vehicle): number | undefined {
+        return this._allSpawnedVehicles.get(veh)?.vehicleId;
+    }
+
+    getVehOwnerId(veh: alt.Vehicle): number | undefined {
+        return this._allSpawnedVehicles.get(veh)?.vehOwnerId;
+    }
+    
     getVehDespawnTimeoutId(veh: alt.Vehicle): number | undefined | null {
         return this._allSpawnedVehicles.get(veh)?.DespawnTimeoutId;
     }

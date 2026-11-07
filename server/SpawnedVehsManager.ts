@@ -24,7 +24,7 @@ export class SpawnedVehsManager {
             if(!this.playerVehiclesRepository.hasVeh(veh) || Object.keys(veh.passengers).length !== 0) return; //игрок за рулем тоже входит в passengers
             const despawnTimeoutId = this._createVehicleDespawnTimeout(veh);
             if(!despawnTimeoutId){ 
-                alt.logError("Не удалось создать DespawnTimeout");
+                alt.logError("[CarShop] Не удалось создать DespawnTimeout");
                 return;
             }
             this.playerVehiclesRepository.addVehDespawnTimeoutId(veh, despawnTimeoutId);
@@ -51,9 +51,18 @@ export class SpawnedVehsManager {
         }
     }
 
+    safeDestroyPlayerVehicle(veh: alt.Vehicle){
+        if(!this.playerVehiclesRepository.hasVeh(veh)){
+            alt.logError("[CarShop] Попытка совершить действие с машиной которой нет в PlayerVehiclesRepository (не машина заспавненная игроком)");
+            return;
+        }
+        this._stopVehicleDespawnTimeout(veh);
+        this._destroyVehicleAndRemoveVehFromMap(veh);
+    }
+    
     private _createVehicleDespawnTimeout(veh: alt.Vehicle){
         if(this.playerVehiclesRepository.getVehDespawnTimeoutId(veh)) {
-            alt.logError("Нельзя создавать VehicleDespawnTimeout для машины на кототорой уже существует VehicleDespawnTimeout");
+            alt.logError("[CarShop] Нельзя создавать VehicleDespawnTimeout для машины на кототорой уже существует VehicleDespawnTimeout");
             return;
         }
 

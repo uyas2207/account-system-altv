@@ -59,7 +59,7 @@ class CarShopClient {
         const configData = this._findVehPriceInConfig(model ?? "");
 
         if(!configData){
-            alt.logError(`Не удалось найти машину в конфиге`);
+            alt.logError(`[CarShop] Не удалось найти машину в конфиге`);
             return;
         }
         this.carShopVisuals.createTextLabel(coords, configData?.element, entity.rot, configData?.index);
@@ -84,7 +84,7 @@ class CarShopClient {
     //ищет в конфиге авто с таким же названием и берет его данные
     private _findVehPriceInConfig(model: string){
         if(model === ""){
-            alt.logError("Переданно некорректное название модели авто");
+            alt.logError("[CarShop] Переданно некорректное название модели авто");
             return;
         }
         for (let index = 0; index < vehiclesForSaleList.length; index++) {

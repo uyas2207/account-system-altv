@@ -14,10 +14,10 @@ import { VehiclesDataCollector } from "./VehiclesDataCollector";
 import { PlayerVehicleService } from './PlayerVehicleService'
 
 import { PlayerVehiclesRepository } from "./SrverDataRepositories/PlayerVehiclesRepository";
-
+import { ConfigValidator } from "./UtilsServer/ConfigValidator";
 import { vehiclesForSaleList } from '@shared/SharedConfig'
 
-class StartServer {
+class CarShopServer {
     private readonly accountDBRepository: AccountDBRepository;
     private readonly vehicleDBRepository: VehicleDBRepository;
     private readonly carShopDBIntreractor: CarShopDBIntreractor;
@@ -38,13 +38,13 @@ class StartServer {
         this.accountDBRepository = new AccountDBRepository(db);
         this.vehicleDBRepository = new VehicleDBRepository(db);
         this.carShopDBIntreractor = new CarShopDBIntreractor(db, this.accountDBRepository, this.vehicleDBRepository)
-        this.vehiclesForSaleRegistry= new VehiclesForSaleRegistry(vehiclesForSaleList);
+        this.vehiclesForSaleRegistry = new VehiclesForSaleRegistry(vehiclesForSaleList);
         this.accoutManager = new AccountManager(this.accountDBRepository);
-        this.vehiclesDataCollector = new VehiclesDataCollector(this.accoutManager, this.vehicleDBRepository, this.spawnedVehsManager, this.vehiclesForSaleRegistry)
+        this.vehiclesDataCollector = new VehiclesDataCollector(this.accoutManager, this.vehicleDBRepository, this.vehiclesForSaleRegistry, this.playerVehiclesRepository)
         this.carShopTradingService = new CarShopTradingService(this.carShopDBIntreractor, this.spawnedVehsManager, this.vehiclesForSaleRegistry, this.vehiclesDataCollector);        
         this.playerVehicleService = new PlayerVehicleService(this.vehiclesDataCollector, this.spawnedVehsManager, this.vehicleDBRepository);
         this.commandManager = new CommandManager(this.accoutManager, this.carShopTradingService, this.playerVehicleService);
-
+        
         this._init();
     }
 
@@ -60,13 +60,15 @@ class StartServer {
         alt.on('playerDisconnect', async (player, reason) => {
             this.accoutManager.accountExit(player);
         });
-
-        const id = alt.setTimeout(() => {
-            console.log("asd");
-        }, 20000);
-        console.log("id", id);
     }
     
 }
 
-new StartServer;
+try {
+    ConfigValidator.validateConfigs();
+    console.log("Валиадция прошла запускается CarShop");
+    new CarShopServer();
+} catch (error) {
+    alt.logError("[CarShop] ConfigValidator обноружил ошибку в заполнении данных, система продажи не запущена на сервере");
+    alt.logError("[CarShop] Ошибка:", error);
+}
