@@ -41,6 +41,6 @@ export const vehiclesForSaleList: Array<IVehiclesForSaleList> = [
         model: "tornado",
         primaryColor: 11,
         secondaryColor: 42,
-        price: 4322
+        price: 4321
     }
 ]
