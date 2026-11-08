@@ -5,7 +5,7 @@ import { VehicleDBRepository } from './DataBaseRepositories/VehicleDBRepository'
 import { VehiclesForSaleRegistry} from "./VehiclesForSaleRegistry";
 import { PlayerVehiclesRepository } from "./SrverDataRepositories/PlayerVehiclesRepository";
 
-import { Vehicles } from './Database/Database'
+import { Vehicles } from './Database/database'
 import { IVehData } from "./Config/Types/IVehData";
 
 import { ClientError } from './Errors/ClientError'

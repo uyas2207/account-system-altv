@@ -2,7 +2,7 @@ import alt from 'alt-server';
 
 import { Kysely, Transaction, UpdateResult } from 'kysely';
 
-import { Database } from './Database/Database';
+import { Database } from './Database/database';
 import { AccountDBRepository } from "./DataBaseRepositories/AccountDBRepository";
 import { VehicleDBRepository } from "./DataBaseRepositories/VehicleDBRepository";
 

@@ -1,6 +1,6 @@
 import * as alt from 'alt-server';
 
-import { db } from './Database/Database';
+import { db } from './Database/database';
 import { CommandManager } from './Commands/CommandManager';
 import { CarShopTradingService } from './CarShopTradingService';
 import { AccountManager } from './AccountManager';
@@ -33,17 +33,18 @@ class CarShopServer {
     private readonly playerVehiclesRepository: PlayerVehiclesRepository;
     constructor()
     {
-        this.playerVehiclesRepository = new PlayerVehiclesRepository();
-        this.spawnedVehsManager = new SpawnedVehsManager(this.playerVehiclesRepository);
-        this.accountDBRepository = new AccountDBRepository(db);
-        this.vehicleDBRepository = new VehicleDBRepository(db);
-        this.carShopDBIntreractor = new CarShopDBIntreractor(db, this.accountDBRepository, this.vehicleDBRepository)
-        this.vehiclesForSaleRegistry = new VehiclesForSaleRegistry(vehiclesForSaleList);
-        this.accoutManager = new AccountManager(this.accountDBRepository);
-        this.vehiclesDataCollector = new VehiclesDataCollector(this.accoutManager, this.vehicleDBRepository, this.vehiclesForSaleRegistry, this.playerVehiclesRepository)
-        this.carShopTradingService = new CarShopTradingService(this.carShopDBIntreractor, this.spawnedVehsManager, this.vehiclesForSaleRegistry, this.vehiclesDataCollector);        
-        this.playerVehicleService = new PlayerVehicleService(this.vehiclesDataCollector, this.spawnedVehsManager, this.vehicleDBRepository);
-        this.commandManager = new CommandManager(this.accoutManager, this.carShopTradingService, this.playerVehicleService);
+        this.playerVehiclesRepository = new PlayerVehiclesRepository(); //хранит и дает данные о vehicleId vehOwnerId DespawnTimeoutId
+
+        this.spawnedVehsManager = new SpawnedVehsManager(this.playerVehiclesRepository); //действия с машинами игрока как entity: спавн, работа с таймерами на деспавн
+        this.accountDBRepository = new AccountDBRepository(db); //взаимодействия с таблицей accounts в бд
+        this.vehicleDBRepository = new VehicleDBRepository(db); //взаимодействия с таблицей vehicles в бд
+        this.carShopDBIntreractor = new CarShopDBIntreractor(db, this.accountDBRepository, this.vehicleDBRepository) //проведение транзакций в бд при покупке и продаже авто
+        this.vehiclesForSaleRegistry = new VehiclesForSaleRegistry(vehiclesForSaleList); //создает машины для продажи по конфигу и взаимодействиует с ними как с entity, проверяет данные в конфиге (изщет price)
+        this.accoutManager = new AccountManager(this.accountDBRepository); //(можно потом разбить на репозиторий и мэнеджер) хранит в себе данные о залогиненых игроках и выполняет операции связанные с аккаунтами (вход/выход/регистрация)
+        this.vehiclesDataCollector = new VehiclesDataCollector(this.accoutManager, this.vehicleDBRepository, this.vehiclesForSaleRegistry, this.playerVehiclesRepository) //общий класс для определения данных необходимых для работы системы
+        this.carShopTradingService = new CarShopTradingService(this.carShopDBIntreractor, this.spawnedVehsManager, this.vehiclesForSaleRegistry, this.vehiclesDataCollector); //выполняет проверки, собирает данные через vehiclesDataCollector и отправляет их на тразакуцию при продаже и покупке (не знаю что с этим классом делать как будто бы надо с каким то другоим объеденить)
+        this.playerVehicleService = new PlayerVehicleService(this.vehiclesDataCollector, this.spawnedVehsManager, this.vehicleDBRepository); //действия над машиной которая принадлежит игроку: смена цвета и номерного знака
+        this.commandManager = new CommandManager(this.accoutManager, this.carShopTradingService, this.playerVehicleService); //регистрирует команды доступные игроку и обрабатывает корректность значений введенные игроком (ввел число от и до, что ввел целое число и т.д.) передает дальше в соответсвующие классы запросы игрок и выводит игроку текст с результатом его команды 
         
         this._init();
     }
@@ -66,9 +67,8 @@ class CarShopServer {
 
 try {
     ConfigValidator.validateConfigs();
-    console.log("Валиадция прошла запускается CarShop");
     new CarShopServer();
 } catch (error) {
-    alt.logError("[CarShop] ConfigValidator обноружил ошибку в заполнении данных, система продажи не запущена на сервере");
+    alt.logError("[CarShop] ConfigValidator обнаружил ошибку в заполнении конфига, система продажи авто не запущена");
     alt.logError("[CarShop] Ошибка:", error);
 }
