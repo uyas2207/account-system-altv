@@ -8,9 +8,10 @@
     "@altv/types-natives": "^16.2.1",
     "@altv/types-server": "^16.6.0",
     "@altv/types-shared": "^16.6.0",
+    "@types/bcryptjs": "^2.4.6",
     "ts-loader": "^9.6.2",
     "typescript": "5.9",
-    "webpack": "^5.108.4",
+    "webpack": "^5.111.1",
     "webpack-cli": "^7.2.1"
   },
   "scripts": {
@@ -31,13 +32,13 @@
   },
   "homepage": "https://github.com/uyas2207/account-system-altv#readme",
   "dependencies": {
-    "kysely": "^0.29.5",
+    "bcryptjs": "^3.0.3",
+    "kysely": "^0.29.6",
     "locate-path": "^5.0.0",
-    "mysql2": "^3.24.2",
+    "mysql2": "^3.24.5",
     "path-exists": "^4.0.0",
     "path-key": "^3.1.1",
     "path-parse": "^1.0.7",
-    "webpack": "^5.110.2",
     "webpack-cli": "^7.2.1",
     "webpack-merge": "^6.0.1",
     "webpack-sources": "^3.5.1"

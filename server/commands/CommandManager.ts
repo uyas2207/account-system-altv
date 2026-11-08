@@ -1,13 +1,18 @@
 import * as alt from 'alt-server';
 const chat = require('alt:chat'); // вместо import * as chat from 'alt:chat'; что бы для ts не нужно было добавлять декларацию
 
-import { CarShopServer } from './CarShopServer'
-import { AccountManager } from './AccountManager'
+import { CarShopTradingService } from '../CarShopTradingService'
+import { AccountManager } from '../AccountManager'
 
-export class CommandManager {
+import { ClientError } from '../Errors/ClientError'
+import { defaultParameters } from '../Config/ServerConfig'
+import { PlayerVehicleService } from '../PlayerVehicleService';
+
+export class CommandManager {    
     constructor(
-        private readonly accoutManager: AccountManager, 
-        private readonly carShopServer: CarShopServer
+        private readonly accoutManager: AccountManager,
+        private readonly carShopTradingService: CarShopTradingService,
+        private readonly playerVehicleService: PlayerVehicleService,
     ){
         this._registerCommands();
     }
@@ -16,20 +21,20 @@ export class CommandManager {
 
         chat.registerCmd('buy', async (player: alt.Player) => {
             try {
-                const vehDBId = await this.carShopServer.onCarPurchaseAttempt(player);
+                const vehDBId = await this.carShopTradingService.onCarPurchaseAttempt(player);
                 chat.send(player, `Машина успешно куплена, id машины: ${vehDBId}`);
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
 
-        chat.registerCmd('sell', async (player: alt.Player) => {
+        chat.registerCmd('sellveh', async (player: alt.Player) => {
             try{
-                const resultMoney = await this.carShopServer.onCarSellAttempt(player);
-                chat.send(player,`Вы успешно продали машину, денег на вашем аккаунте после продажи ${resultMoney}`);
+                const moneyAfterTransaction = await this.carShopTradingService.onCarSellAttempt(player);
+                chat.send(player,`Вы успешно продали машину, денег на вашем аккаунте после продажи ${moneyAfterTransaction}`);
             }
             catch(error){
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
 
@@ -48,7 +53,7 @@ export class CommandManager {
                 await this.accoutManager.onAccountRegisterAttempt(player, login, password, repeatPassword);
                 chat.send(player,`Вы успешно зарегистрировались и вошли в аккаунт с логином ${login}`);
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
         // login login password
@@ -65,34 +70,38 @@ export class CommandManager {
                 await this.accoutManager.onAccountEnterAttempt(player, login, password);
                 chat.send(player,'Вы успешно вошли в аккаунт');
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
         // myvehs
         chat.registerCmd('myvehs', async (player: alt.Player) => {
             try {
-                const allCurrentPlayerVehs = await this.carShopServer.requestVehsByPlayer(player);
+                const allCurrentPlayerVehs = await this.playerVehicleService.requestVehsByPlayer(player);
                 chat.send(player,"Список машин на вашем аккаунте:");
                 allCurrentPlayerVehs.forEach(element => {
                     const model = element.model;
                     chat.send(player, `${model} (${model.toLowerCase()}) - ID: ${element.vehId}`);
                 });
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
         //spawnveh ID
         chat.registerCmd('spawnveh', async (player: alt.Player, args: Array<string>) => {
-            const vehDBId = args[0];
-            
-            if(!vehDBId){
+            if(!args[0]){
                 chat.send(player,"/spawnveh <ID>");
                 chat.send(player,"Не введено значение ID");
                 return;
             }
-            
+
+            const vehDBId = Number.parseInt(args[0]);
+            if(!vehDBId || vehDBId <= 0){
+                chat.send(player,"/spawnveh <ID>");
+                chat.send(player,"ID Может быть только целым числом больше 0");
+                return;      
+            }
             try {
-                const result = await this.carShopServer.onSpawnVehicleAttempt(player, vehDBId);
+                const result = await this.playerVehicleService.onSpawnVehicleAttempt(player, vehDBId);
                 if(result){
                     chat.send(player, "Машина успешно заспавнена");
                 }
@@ -100,7 +109,7 @@ export class CommandManager {
                     chat.send(player, "Машина успешно телпортирована");
                 }
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
         //color color1 color2
@@ -118,10 +127,10 @@ export class CommandManager {
                 return;
             }
             try {
-                await this.carShopServer.onChangeColorAttempt(player, color1, color2);
+                await this.playerVehicleService.onChangeColorAttempt(player, color1, color2);
                 chat.send(player,"Вы успешно сменили цвет авто");
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
 
@@ -133,14 +142,14 @@ export class CommandManager {
             const text = args[0];
             if(!text || text.length > 7){
                 chat.send(player,"/numberplate <numberplate_text>");
-                chat.send(player,"Длинна текста должна быть больше 0 и меньше 7 символов");
+                chat.send(player,"Длинна текста должна быть больше 0 и меньше 8 символов");
                 return;
             }
             try {
-                await this.carShopServer.onChangeNumberPlateAttempt(player, text);
+                await this.playerVehicleService.onChangeNumberPlateAttempt(player, text);
                 chat.send(player,`Вы успешно поменяли Номерной знак на ${text}`);
             } catch (error) {
-                this._sendErrorToPlayer(player, error);
+                this._validateError(player, error);
             }
         });
     }
@@ -149,21 +158,24 @@ export class CommandManager {
         return Number.isInteger(num) && num >= 0 && num < 161;
     }
 
-    private _sendErrorToPlayer(player: alt.Player, error: unknown){
-        if(error instanceof Error){
-            const text = this._checkErrorType(error.message);
-            chat.send(player, text);
+    private _validateError(player: alt.Player, error: unknown){
+        if(error instanceof ClientError){
+            chat.send(player, error.message);
         }
         else{
-            alt.logError("Произошла ошибка в try, но не instanceof Error");
+            const text = this._checkErrorType(error) ?? defaultParameters.defaultErrorMessage;
+            chat.send(player, text);
         }
     }
 
-    private _checkErrorType(text: string){
-        switch (true) {
-            case text.includes("connect"): return "Ошибка с подключением к БД";
-            case text.includes("Duplicate entry"): return "Данное значение недоступно";
-            default: return text;
+    private _checkErrorType(error: unknown){
+        if (error instanceof Error) {
+            const text = error.message;
+            switch (true) {
+                case text.includes("connect"): return "Ошибка подключения к базе данных";
+                case text.includes("Duplicate entry"): return "Данное значение недоступно";
+            }
         }
+        alt.logError("[CarShop] Произошла ошибка, но ее не надо показывать клиенту:", error);
     }
 }

@@ -1,12 +1,10 @@
 import * as alt from 'alt-client';
 import native from 'natives'
 
-import { drawNotification } from './utilitiesClient';
-
-import { vehiclesForSaleList } from '@shared/SharedConfig'
-
+import { drawNotification } from './UtilsClient/UtilitiesClient';
+import { wait } from "@shared/UtilsShared/UtilitiesShared";
 import { CarShopVisuals } from './CarShopVisuals'
-
+import { vehiclesForSaleList } from '@shared/SharedConfig'
 
 class CarShopClient {
     private readonly carShopVisuals: CarShopVisuals;
@@ -31,9 +29,9 @@ class CarShopClient {
             }
         });
 
-        alt.on('startEnteringVehicle', (vehicle, seat, player) => {
-            if(vehicle.hasStreamSyncedMeta('CarForSaleId')){
-                const model = native.getDisplayNameFromVehicleModel(vehicle.model);
+        alt.on('startEnteringVehicle', (veh, seat, player) => {
+            if(veh.hasStreamSyncedMeta('CarForSaleId')){
+                const model = native.getDisplayNameFromVehicleModel(veh.model);
                 drawNotification(`/buy что бы купить машину ${model?.toLowerCase()}`);
             }
         });
@@ -52,19 +50,19 @@ class CarShopClient {
         //пока что костыль, почему то при тп в зону с авто их коордлинаты считаются 0, хотя все проверки на valid isspawned visible scriptID и т.д. говорят что авто заспанилось корректно
         //почему то все проверки говорят что авто норм, но координаты неправильны, поэтому добавил задержку перед спавном текста что бы он был на корректных координатах
         if(entity.pos.x === 0){
-            await new Promise(resolve => alt.setTimeout(resolve, 800));
+            await wait(800);
         }
         this._toogleVehicleAvailability(entity, false);
         
         const coords = this._calculateVehicleTextCoords(entity);
-        const index = entity.getStreamSyncedMeta('CarForSaleId') as number;
-        const configData = vehiclesForSaleList[index];
+        const model = native.getDisplayNameFromVehicleModel(entity.model);
+        const configData = this._findVehPriceInConfig(model ?? "");
 
         if(!configData){
-            alt.logError(`Не удалось найти машину в конфиге`);
+            alt.logError(`[CarShop] Не удалось найти машину в конфиге`);
             return;
         }
-        this.carShopVisuals.createTextLabel(coords, configData, entity.rot, index);
+        this.carShopVisuals.createTextLabel(coords, configData?.element, entity.rot, configData?.index);
     }
 
     private _toogleVehicleAvailability(entity: alt.Vehicle, vehicleAvailabilityState: boolean): void{
@@ -83,8 +81,12 @@ class CarShopClient {
         const expectedZ = entity.pos.z + 0.5;
         return new alt.Vector3(expectedX, expectedY, expectedZ);
     }
-    //если потом придется перейти на поиск машины в конфиге а не использование index из StreamSyncedMeta
+    //ищет в конфиге авто с таким же названием и берет его данные
     private _findVehPriceInConfig(model: string){
+        if(model === ""){
+            alt.logError("[CarShop] Переданно некорректное название модели авто");
+            return;
+        }
         for (let index = 0; index < vehiclesForSaleList.length; index++) {
             const element = vehiclesForSaleList[index];
             if(element?.model.toLowerCase() === model.toLowerCase()){

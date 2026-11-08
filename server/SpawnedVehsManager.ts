@@ -1,113 +1,104 @@
 import alt from 'alt-server';
 
-import { Vehicles } from './database/database'
-import{ defaultParameters } from './config/VehConfig'
+import { Vehicles } from './Database/database'
+import { defaultParameters } from './Config/ServerConfig'
+import { PlayerVehiclesRepository } from './SrverDataRepositories/PlayerVehiclesRepository';
 
-interface IVehicleData {
-    vehicleId: number;
-    vehOwnerId: number;
-    TimeoutId: number | null;
-}
+import { wait } from "@shared/UtilsShared/UtilitiesShared";
 
 export class SpawnedVehsManager {
-    private readonly allSpawnedVehicles: Map <alt.Vehicle, IVehicleData> = new Map <alt.Vehicle, IVehicleData>();
-
-    constructor(){
+    constructor( 
+        private readonly playerVehiclesRepository: PlayerVehiclesRepository
+    ){
         this._registerEventListeners();
     }
 
     private _registerEventListeners(): void{
-        alt.on("playerEnteredVehicle", async (player, vehicle) => {
-            if(this.allSpawnedVehicles.has(vehicle)){
-                const mapData = this.allSpawnedVehicles.get(vehicle);
-                if(mapData?.TimeoutId){
-                    alt.clearTimeout(mapData.TimeoutId);
-                    this.allSpawnedVehicles.set(vehicle, { vehicleId: mapData!.vehicleId, vehOwnerId: mapData.vehOwnerId, TimeoutId: null });
-                }
+        alt.on("playerEnteredVehicle", async (player, veh) => {
+            if(!this.playerVehiclesRepository.hasVeh(veh)) return;
+            this._stopVehicleDespawnTimeout(veh);
+        });
+
+        //при дисконкте игрока ивент на playerLeftVehicle автоматически происходит
+        alt.on("playerLeftVehicle", async (player, veh) => {
+            if(!this.playerVehiclesRepository.hasVeh(veh) || Object.keys(veh.passengers).length !== 0) return; //игрок за рулем тоже входит в passengers
+            const despawnTimeoutId = this._createVehicleDespawnTimeout(veh);
+            if(!despawnTimeoutId){ 
+                alt.logError("[CarShop] Не удалось создать DespawnTimeout");
+                return;
             }
+            this.playerVehiclesRepository.addVehDespawnTimeoutId(veh, despawnTimeoutId);
         });
 
-        alt.on("playerLeftVehicle", async (player, vehicle) => {
-            if(this.allSpawnedVehicles.has(vehicle)){
-                const mapData = this.allSpawnedVehicles.get(vehicle);
-                if(!(mapData?.TimeoutId)){
-                    const despawnTimeoutId = alt.setTimeout(() => {
-                        this.destroyVehicleOnTimer(vehicle);
-                    }, defaultParameters.defaultDespawnTimer );//120000
-                    this.allSpawnedVehicles.set(vehicle, { vehicleId: mapData!.vehicleId, vehOwnerId: mapData!.vehOwnerId, TimeoutId: despawnTimeoutId });
-                }
-            }
+        alt.on("vehicleDestroy", async (veh) => {
+            if(!this.playerVehiclesRepository.hasVeh(veh)) return;
+            await wait(2000);    //что бы машина удалялась после анимации со взрывом а не сразу
+            this._stopVehicleDespawnTimeout(veh);
+            this._destroyVehicleAndRemoveVehFromMap(veh);
         });
-        
-        alt.on("vehicleDestroy", async (vehicle) => {
-            this.checkVehicleBeforeDestroy(vehicle);
-        });
-    }
-
-    addVehicle(vehId: number, veh: alt.Vehicle, accountId: number, addDestroy = true): void{
-        let despawnTimeoutId = null;
-
-        if(addDestroy){
-            despawnTimeoutId = alt.setTimeout(() => {
-                this.destroyVehicleOnTimer(veh);
-            }, defaultParameters.defaultDespawnTimer);//120000
-        }
-        this.allSpawnedVehicles.set(veh, { vehicleId: vehId, vehOwnerId: accountId, TimeoutId: despawnTimeoutId });
-    }
-
-    spawnVehicle(player: alt.Player, vehData: Vehicles): void{
-        if (!(this.checkAllSpawnedVehicles(vehData.vehId))){
-            const veh = new alt.Vehicle(vehData.model, player.pos, player.rot);
-            veh.primaryColor = vehData.primaryColor;
-            veh.secondaryColor = vehData.secondaryColor;
-            veh.numberPlateText = vehData.registrationNumber ?? "_";
-            this.addVehicle(vehData.vehId, veh, vehData.ownerId);
-        }
-        else{
-            throw new Error("Попытка заспавнить же существующий транспорт");
-        }
+    
     }
 
     getOrSpawnVehicle(player: alt.Player, vehData: Vehicles): boolean {
-        const result = this.checkAllSpawnedVehicles(vehData.vehId);
-        if(!result){
-            this.spawnVehicle(player, vehData!);
+        const veh = this.playerVehiclesRepository.checkallSpawnedVehiclesByVehId(vehData.vehId);
+        if(!veh){
+            this._spawnVehicle(player, vehData);
             return true;
         }
         else{
-            result.pos = player.pos;
+            veh.pos = player.pos;
             return false;
         }
     }
 
-    checkVehicleBeforeDestroy(vehicle: alt.Vehicle): void{
-        if(this.allSpawnedVehicles.has(vehicle)){
-            const mapData = this.allSpawnedVehicles.get(vehicle);
-            if(mapData?.TimeoutId){
-                alt.clearTimeout(mapData.TimeoutId);
-            }
-            this.destroyVehicleOnTimer(vehicle);
+    safeDestroyPlayerVehicle(veh: alt.Vehicle){
+        if(!this.playerVehiclesRepository.hasVeh(veh)){
+            alt.logError("[CarShop] Попытка совершить действие с машиной которой нет в PlayerVehiclesRepository (не машина заспавненная игроком)");
+            return;
         }
+        this._stopVehicleDespawnTimeout(veh);
+        this._destroyVehicleAndRemoveVehFromMap(veh);
+    }
+    
+    private _createVehicleDespawnTimeout(veh: alt.Vehicle){
+        if(this.playerVehiclesRepository.getVehDespawnTimeoutId(veh)) {
+            alt.logError("[CarShop] Нельзя создавать VehicleDespawnTimeout для машины на кототорой уже существует VehicleDespawnTimeout");
+            return;
+        }
+
+        const despawnTimeoutId = alt.setTimeout(() => {
+            this._destroyVehicleAndRemoveVehFromMap(veh);
+        }, defaultParameters.defaultDespawnTimer);//120000
+        
+        return despawnTimeoutId;
     }
 
-    destroyVehicleOnTimer(veh: alt.Vehicle): void{
-        this.allSpawnedVehicles.delete(veh);
+    private async _stopVehicleDespawnTimeout(veh: alt.Vehicle): Promise<void>{
+        const despawnTimeoutId = this.playerVehiclesRepository.getVehDespawnTimeoutId(veh);
+        if(despawnTimeoutId){
+            alt.clearTimeout(despawnTimeoutId);
+            this.playerVehiclesRepository.clearVehDespawnTimeoutId(veh);
+        }
+    }
+    
+    private _destroyVehicleAndRemoveVehFromMap(veh: alt.Vehicle): void{
+        this.playerVehiclesRepository.deleteVeh(veh);
         veh.destroy();
     }
 
-    checkAllSpawnedVehicles(vehId: number): alt.Vehicle | undefined {
-        for (const [key, value] of this.allSpawnedVehicles) {
-            if(value.vehicleId === vehId){
-                return key;
-            }
-        }
-    }
+    private _spawnVehicle(player: alt.Player, vehData: Vehicles): void{
+        const veh = new alt.Vehicle(vehData.model, player.pos, player.rot);
+        veh.primaryColor = vehData.primaryColor;
+        veh.secondaryColor = vehData.secondaryColor;
+        veh.numberPlateText = vehData.registrationNumber ?? "_";
+        const despawnTimeoutId = this._createVehicleDespawnTimeout(veh);
 
-    getSpawnedVehicleOwnerId(veh: alt.Vehicle): number | undefined {
-        return this.allSpawnedVehicles.get(veh)?.vehOwnerId;
-    }
+        const spawnedVehicleData = {
+            vehicleId:  vehData.vehId,
+            vehOwnerId: vehData.ownerId,
+            DespawnTimeoutId: despawnTimeoutId ?? null
+        };
 
-    getSpawnedVehicleId(veh: alt.Vehicle):  number | undefined {
-        return this.allSpawnedVehicles.get(veh)?.vehicleId;
+        this.playerVehiclesRepository.setVeh(veh, spawnedVehicleData);
     }
 }

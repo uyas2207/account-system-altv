@@ -1,6 +1,6 @@
 import * as alt from 'alt-client';
 
-import { IVehiclesForSaleList } from '@shared/types/IVehiclesConfig'
+import { IVehiclesForSaleList } from '@shared/Types/IVehiclesConfig'
 
 import { visualTextLabelConfig } from "./ConfigClient/ConfigClient";
 
@@ -31,14 +31,5 @@ export class CarShopVisuals {
             label?.destroy();
             this.priceTextLabels.delete(index);
         }
-    }
-
-    //дебаг команда потом удалить
-    print(){
-        alt.log('Весь priceTextLabels');
-        this.priceTextLabels.forEach((value, key) => {
-            alt.log(`Ключ: ${(key)}`);
-            alt.log('value:', (value));
-        });
     }
 }

@@ -33,5 +33,13 @@ export const defaultParameters = {
     numberOfCarsForSale: vehiclesForSaleList.length, //не может быть больше чем vehicleSpawnCoords, если будет больше будет использоваться кол-во такое же как кол-во vehicleSpawnCoords
     percentageForSell: 0.75,              //75% от цены, на сколько надо умножить цену авто из конфига при продаже через команду /sell
     defaultAccountMoney: 10000,              //начальная сумма денег на аккаунте
-    defaultDespawnTimer: 120000              //через сколько ms без водителя машина удалится
+    defaultDespawnTimer: 120000,   //120000           //через сколько ms без водителя машина удалится
+    defaultErrorMessage: "Произошла непредвиденная ошибка"  //какое сообщение будет показываться игроку если произойдет ошибка не для клиента
 };
+
+export const configValidationParameters = {
+    maxPrice: 100000,
+    minPrice: 100,
+    maxColorNum: 160,
+    minColorNum: 0
+}

@@ -1,7 +1,7 @@
-import { Kysely, Insertable, Transaction, DeleteResult, InsertResult, UpdateResult } from 'kysely';
-import { Database, AccountTable, Account } from '../database/database'
+import { Kysely, Insertable, Transaction, DeleteResult, InsertResult, UpdateResult, sql } from 'kysely';
+import { Database, AccountTable, Account } from '../Database/database'
 
-export class AccountDBService {
+export class AccountDBRepository {
     protected readonly _db: Kysely<Database>
     
     constructor(db: Kysely<Database>){
@@ -29,12 +29,22 @@ export class AccountDBService {
         return result?.money;
     }
 
-    async updateMoneyByPrimaryKey(primaryKeyValue: number, moneyValue: number, trx?: Transaction<Database>): Promise<UpdateResult[]> {
+    async giveMoneyByPrimaryKey(primaryKeyValue: number, price: number, trx?: Transaction<Database>): Promise<UpdateResult> {
         const executor = trx || this._db;
         return await executor
             .updateTable('account')
-            .set({'money': moneyValue})
-            .where('accountId', '=', primaryKeyValue).execute();
+            .set({money: sql`money + ${price}`})
+            .where('accountId', '=', primaryKeyValue).executeTakeFirst();
+    }
+
+    async takeMoneyByPrimaryKey(primaryKeyValue: number, price: number, trx?: Transaction<Database>): Promise<UpdateResult> {
+        const executor = trx || this._db;
+        return await executor
+            .updateTable('account')
+            .set({money: sql`money - ${price}`})
+            .where('accountId', '=', primaryKeyValue)
+            .where('money', '>=', price)
+            .executeTakeFirst();
     }
     
     async insertNewRow(values: Insertable<AccountTable>): Promise<InsertResult[]> {
