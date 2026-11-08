@@ -1,7 +1,7 @@
 import * as alt from 'alt-server';
 import * as bcrypt from 'bcryptjs';
 import { defaultParameters } from './Config/ServerConfig'
-import { Account } from './Database/database'
+import { Account } from './Database/Database'
 import { AccountDBRepository } from './DataBaseRepositories/AccountDBRepository';
 
 import { ClientError } from './Errors/ClientError'

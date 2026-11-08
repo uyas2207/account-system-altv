@@ -1,6 +1,6 @@
 import alt from 'alt-server';
 
-import { Vehicles } from './Database/database'
+import { Vehicles } from './Database/Database'
 import { defaultParameters } from './Config/ServerConfig'
 import { PlayerVehiclesRepository } from './SrverDataRepositories/PlayerVehiclesRepository';
 

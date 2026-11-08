@@ -1,6 +1,6 @@
 import * as alt from 'alt-server';
 
-import { db } from './Database/database';
+import { db } from './Database/Database';
 import { CommandManager } from './Commands/CommandManager';
 import { CarShopTradingService } from './CarShopTradingService';
 import { AccountManager } from './AccountManager';
